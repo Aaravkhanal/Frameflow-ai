@@ -13,7 +13,7 @@ export function FrameFlowLogo({
       alt="FrameFlow AI Logo"
       width={size}
       height={size}
-      className={`object-contain rounded-xl shadow-sm transition-all ${className}`}
+      className={`object-cover rounded-xl shadow-md border border-cyan-500/30 transition-all hover:border-cyan-400/60 ${className}`}
       style={{ width: size, height: size }}
     />
   );

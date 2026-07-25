@@ -1,3 +1,4 @@
+import os
 from typing import Optional
 
 from anthropic import AsyncAnthropic
@@ -86,14 +87,14 @@ def create_provider_session(
         # NVIDIA NIM uses the OpenAI-compatible API with a different base URL
         # and model-specific API keys.
         if model == Llm.GLM_5_2:
-            api_key = nvidia_api_key_glm
+            api_key = nvidia_api_key_glm or os.environ.get("NVIDIA_API_KEY_GLM") or NVIDIA_API_KEY_GLM
             if not api_key:
                 raise Exception(
                     "NVIDIA GLM-5.2 API key is missing. "
                     "Set NVIDIA_API_KEY_GLM in backend/.env"
                 )
         elif model == Llm.KIMI_K2_6:
-            api_key = nvidia_api_key_kimi
+            api_key = nvidia_api_key_kimi or os.environ.get("NVIDIA_API_KEY_KIMI") or NVIDIA_API_KEY_KIMI
             if not api_key:
                 raise Exception(
                     "NVIDIA Kimi K2.6 API key is missing. "

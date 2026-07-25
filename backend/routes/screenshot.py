@@ -2,6 +2,7 @@ import base64
 import ipaddress
 import logging
 import socket
+import os
 from urllib.parse import urlparse
 
 import httpx
@@ -116,39 +117,59 @@ def bytes_to_data_url(image_bytes: bytes, mime_type: str) -> str:
 
 
 async def capture_screenshot(
-    target_url: str, api_key: str, device: str = "desktop"
+    target_url: str, api_key: str | None = None, device: str = "desktop"
 ) -> bytes:
-    api_base_url = "https://api.screenshotone.com/take"
+    if api_key:
+        api_base_url = "https://api.screenshotone.com/take"
 
-    params = {
-        "access_key": api_key,
-        "url": target_url,
-        "full_page": "true",
-        "device_scale_factor": "1",
-        "format": "png",
-        "block_ads": "true",
-        "block_cookie_banners": "true",
-        "block_trackers": "true",
-        "cache": "false",
-        "viewport_width": "342",
-        "viewport_height": "684",
-    }
+        params = {
+            "access_key": api_key,
+            "url": target_url,
+            "full_page": "true",
+            "device_scale_factor": "1",
+            "format": "png",
+            "block_ads": "true",
+            "block_cookie_banners": "true",
+            "block_trackers": "true",
+            "cache": "false",
+            "viewport_width": "342",
+            "viewport_height": "684",
+        }
 
-    if device == "desktop":
-        params["viewport_width"] = "1280"
-        params["viewport_height"] = "832"
+        if device == "desktop":
+            params["viewport_width"] = "1280"
+            params["viewport_height"] = "832"
 
-    async with httpx.AsyncClient(timeout=60) as client:
-        response = await client.get(api_base_url, params=params)
-        if response.status_code == 200 and response.content:
-            return response.content
-        else:
-            raise Exception("Error taking screenshot")
+        try:
+            async with httpx.AsyncClient(timeout=60) as client:
+                response = await client.get(api_base_url, params=params)
+                if response.status_code == 200 and response.content:
+                    return response.content
+        except Exception as e:
+            logger.warning(f"ScreenshotOne API failed ({e}), falling back to local Playwright screenshot")
+
+    # Local Playwright fallback (zero-config, works out of the box)
+    logger.info("Using local Playwright to capture website screenshot")
+    try:
+        from playwright.async_api import async_playwright
+        async with async_playwright() as p:
+            browser = await p.chromium.launch(headless=True)
+            context = await browser.new_context(
+                viewport={"width": 1280, "height": 832} if device == "desktop" else {"width": 375, "height": 812}
+            )
+            page = await context.new_page()
+            await page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
+            await page.wait_for_timeout(1000)
+            screenshot_bytes = await page.screenshot(full_page=True)
+            await browser.close()
+            return screenshot_bytes
+    except Exception as exc:
+        raise Exception(f"Error capturing screenshot via Playwright fallback: {exc}")
 
 
 class ScreenshotRequest(BaseModel):
     url: str
-    apiKey: str
+    apiKey: str | None = None
 
 
 class ScreenshotResponse(BaseModel):
@@ -158,15 +179,11 @@ class ScreenshotResponse(BaseModel):
 @router.post("/api/screenshot")
 async def app_screenshot(request: ScreenshotRequest) -> ScreenshotResponse:
     url = request.url
-    api_key = request.apiKey
+    api_key = request.apiKey or os.environ.get("SCREENSHOTONE_API_KEY")
 
     try:
         # Normalize the URL first
         normalized_url = normalize_url(url)
-
-        # SSRF protection: block private/reserved IP ranges before making any
-        # outbound request. This prevents the server from being used as a proxy
-        # to reach internal services (AWS IMDS, Kubernetes API, etc.).
         is_safe_url(normalized_url)
 
         image_bytes = await capture_screenshot(normalized_url, api_key=api_key)

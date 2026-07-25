@@ -83,13 +83,9 @@ function UrlTab({
       return;
     }
 
-    if (!screenshotOneApiKey) {
-      toast.error(
-        "Please add a ScreenshotOne API key in Settings (or enter a Figma URL). You can also upload screenshots directly in the Upload tab.",
-        { duration: 6000 },
-      );
-      return;
-    }
+    // We allow it to pass through to backend, which might have SCREENSHOTONE_API_KEY in its env.
+    // If not, the backend will return a 400.
+    const apiKey = screenshotOneApiKey || "";
 
     try {
       setIsLoading(true);
@@ -97,7 +93,7 @@ function UrlTab({
         method: "POST",
         body: JSON.stringify({
           url: trimmedReferenceUrl,
-          apiKey: screenshotOneApiKey,
+          apiKey: apiKey,
         }),
         headers: {
           "Content-Type": "application/json",
@@ -105,7 +101,8 @@ function UrlTab({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to capture screenshot");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to capture screenshot");
       }
 
       const res = await response.json();
@@ -117,7 +114,8 @@ function UrlTab({
       );
     } catch (error) {
       console.error(error);
-      toast.error("Failed to capture screenshot. Check console for details.");
+      const message = error instanceof Error ? error.message : "Failed to capture screenshot";
+      toast.error(message);
     } finally {
       setIsLoading(false);
     }

@@ -129,4 +129,6 @@ export interface OrchestrationEventData {
   pipelineStage?: {
     stage: "routing" | "vision" | "coding" | "debate" | "refining" | "review" | "consensus";
   };
+  content?: string;
+  agentType?: string;
 }

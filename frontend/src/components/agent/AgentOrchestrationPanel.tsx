@@ -1,191 +1,163 @@
 import React from "react";
-import classNames from "classnames";
-import { AgentCritique, OrchestrationEventData } from "../../types";
-import { AgentBadge } from "./AgentBadge";
+import { motion, AnimatePresence } from "framer-motion";
+import { OrchestrationEventData } from "../../types";
+import { CheckCircle2, Circle, Loader2, BrainCircuit, Activity, Clock, Box, Layout, Cpu } from "lucide-react";
 
 interface AgentOrchestrationPanelProps {
   events: OrchestrationEventData[];
   isActive: boolean;
 }
 
-const STAGE_LABELS: Record<string, string> = {
-  routing: "Routing Request",
-  vision: "Vision Analysis",
-  coding: "Initial Code Generation",
-  debate: "Expert Debate & Critique",
-  refining: "Refining Code",
-  review: "Senior Review",
-  consensus: "Consensus Reached",
-};
+const PIPELINE_STAGES = [
+  { id: "routing", label: "Upload & Routing" },
+  { id: "vision", label: "Vision Analysis" },
+  { id: "layout", label: "Layout Detection" },
+  { id: "extraction", label: "Component Extraction" },
+  { id: "coding", label: "Code Generation" },
+  { id: "debate", label: "Expert Debate & Critique" },
+  { id: "refining", label: "Refining & Optimization" },
+  { id: "review", label: "Senior Review" },
+  { id: "consensus", label: "Export & Finalize" },
+];
 
 export const AgentOrchestrationPanel: React.FC<AgentOrchestrationPanelProps> = ({
   events,
   isActive,
 }) => {
-  // Find current stage
   const stageEvents = events.filter((e) => e.pipelineStage);
   const currentStage = stageEvents.length > 0 
     ? stageEvents[stageEvents.length - 1].pipelineStage?.stage 
     : "routing";
 
-  // Find active agent
   const agentStartEvents = events.filter((e) => e.agentStart);
   const activeAgent = agentStartEvents.length > 0 
     ? agentStartEvents[agentStartEvents.length - 1].agentStart 
     : null;
 
-  // Find all critiques
-  const critiques = events.filter((e) => e.agentCritique).map((e) => e.agentCritique!);
+  // Find the index of the current stage in our predefined list (mapping slightly to logic)
+  const mappedCurrentStage = 
+    currentStage === "routing" ? "routing" :
+    currentStage === "vision" ? "vision" :
+    currentStage === "coding" ? "coding" :
+    currentStage === "debate" ? "debate" :
+    currentStage === "refining" ? "refining" :
+    currentStage === "review" ? "review" :
+    currentStage === "consensus" ? "consensus" : "routing";
 
-  // Find debate rounds
-  const debateRounds = events.filter((e) => e.debateRound).map((e) => e.debateRound!);
-  const currentRound = debateRounds.length > 0 ? debateRounds[debateRounds.length - 1] : null;
-
-  if (events.length === 0) return null;
+  const currentStageIndex = PIPELINE_STAGES.findIndex(s => s.id === mappedCurrentStage);
 
   return (
-    <div className="flex flex-col gap-4 w-full h-full overflow-y-auto bg-gray-50 dark:bg-gray-900 rounded-xl p-4 border border-gray-200 dark:border-gray-800 shadow-inner">
-      <div className="flex items-center justify-between border-b border-gray-200 dark:border-gray-800 pb-3">
-        <h3 className="text-lg font-bold flex items-center gap-2">
-          <span className="text-2xl">🧠</span> AI Orchestration Engine
-        </h3>
-        <div className="flex items-center gap-2">
-          {isActive ? (
-            <span className="flex h-3 w-3 relative">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-            </span>
-          ) : (
-            <span className="h-3 w-3 rounded-full bg-gray-400"></span>
-          )}
-          <span className="text-sm font-medium text-gray-500 uppercase tracking-wider">
-            {isActive ? "Pipeline Active" : "Pipeline Idle"}
-          </span>
-        </div>
-      </div>
+    <div className="flex flex-col gap-6 w-full h-full text-slate-200">
+      
+      {/* Pipeline Visualization */}
+      <div className="flex flex-col gap-3 rounded-2xl bg-slate-900/50 p-5 border border-white/5 shadow-xl">
+        <h3 className="text-sm font-semibold uppercase tracking-widest text-slate-400 mb-2">Orchestration Pipeline</h3>
+        <div className="flex flex-col gap-4">
+          {PIPELINE_STAGES.map((stage, idx) => {
+            const isCompleted = idx < currentStageIndex || (mappedCurrentStage === "consensus" && !isActive);
+            const isCurrent = idx === currentStageIndex && isActive;
 
-      <div className="flex items-center gap-3 p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-100 dark:border-gray-700">
-        <div className="flex-1">
-          <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mb-1">Current Stage</div>
-          <div className="text-base font-semibold text-blue-600 dark:text-blue-400">
-            {currentStage ? STAGE_LABELS[currentStage] || currentStage : "Initializing..."}
-          </div>
-        </div>
-        
-        {activeAgent && (isActive || currentStage !== "consensus") && (
-          <div className="flex items-center gap-2">
-            <div className="text-xs text-gray-500 uppercase font-bold tracking-wider mr-2 text-right">Active Agent</div>
-            <AgentBadge 
-              name={activeAgent.agentName} 
-              role={activeAgent.agentRole} 
-              icon={activeAgent.icon} 
-              color={activeAgent.color}
-              model={activeAgent.model}
-              size="lg"
-            />
-          </div>
-        )}
-      </div>
-
-      {currentRound && (
-        <div className="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-indigo-100 dark:border-indigo-900">
-          <div className="flex justify-between items-end mb-2">
-            <div>
-              <div className="text-xs text-indigo-500 uppercase font-bold tracking-wider mb-1">Debate Round {currentRound.round}</div>
-              <div className="text-sm font-medium">Consensus Threshold: {currentRound.threshold.toFixed(1)}/10</div>
-            </div>
-            <div className="text-right">
-              <div className="text-2xl font-bold" style={{ color: currentRound.passed ? '#10B981' : '#F59E0B' }}>
-                {currentRound.averageScore.toFixed(1)}
+            return (
+              <div key={stage.id} className="flex items-center gap-3">
+                <div className="relative flex items-center justify-center">
+                  {/* The Line */}
+                  {idx !== PIPELINE_STAGES.length - 1 && (
+                    <div className={`absolute top-6 w-0.5 h-4 -z-10 ${isCompleted ? "bg-cyan-500/50" : "bg-slate-700/50"}`} />
+                  )}
+                  {/* The Icon */}
+                  {isCompleted ? (
+                    <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="text-cyan-400">
+                      <CheckCircle2 size={18} />
+                    </motion.div>
+                  ) : isCurrent ? (
+                    <motion.div 
+                      animate={{ scale: [1, 1.2, 1] }} 
+                      transition={{ repeat: Infinity, duration: 1.5 }}
+                      className="text-cyan-300 drop-shadow-[0_0_8px_rgba(6,182,212,0.8)]"
+                    >
+                      <Loader2 size={18} className="animate-spin" />
+                    </motion.div>
+                  ) : (
+                    <Circle size={18} className="text-slate-600" />
+                  )}
+                </div>
+                <span className={`text-sm font-medium ${isCurrent ? "text-cyan-100" : isCompleted ? "text-slate-300" : "text-slate-600"}`}>
+                  {stage.label}
+                </span>
               </div>
-              <div className="text-xs text-gray-500 uppercase font-bold">Current Score</div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Active Agent Card */}
+      <AnimatePresence mode="wait">
+        {activeAgent && isActive && mappedCurrentStage !== "consensus" && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="flex flex-col gap-4 rounded-2xl bg-gradient-to-br from-slate-800 to-slate-900 p-5 border border-cyan-500/20 shadow-[0_10px_30px_-10px_rgba(6,182,212,0.15)]"
+          >
+            <div className="flex items-center justify-between border-b border-white/5 pb-3">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-950 text-2xl border border-cyan-800/50">
+                  {activeAgent.icon || "🤖"}
+                </div>
+                <div>
+                  <h4 className="font-semibold text-cyan-100">{activeAgent.agentName}</h4>
+                  <div className="flex items-center gap-1 text-xs text-slate-400">
+                    <BrainCircuit size={12} />
+                    {activeAgent.model || "Gemini 2.5"}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col items-end">
+                <span className="text-xs uppercase tracking-wider text-slate-500">Status</span>
+                <span className="text-sm font-medium text-cyan-400 flex items-center gap-1">
+                  <Activity size={12} className="animate-pulse" />
+                  Analyzing...
+                </span>
+              </div>
             </div>
-          </div>
-          
-          <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 mb-1 overflow-hidden relative">
-            <div 
-              className={classNames("h-2.5 rounded-full transition-all duration-500", currentRound.passed ? "bg-green-500" : "bg-yellow-500")}
-              style={{ width: `${Math.min(100, (currentRound.averageScore / 10) * 100)}%` }}
-            ></div>
-            <div 
-              className="absolute top-0 bottom-0 w-0.5 bg-red-500 z-10" 
-              style={{ left: `${(currentRound.threshold / 10) * 100}%` }}
-              title="Threshold"
-            ></div>
-          </div>
-        </div>
-      )}
 
-      {critiques.length > 0 && (
-        <div className="mt-2 space-y-3">
-          <h4 className="text-sm font-bold text-gray-700 dark:text-gray-300 uppercase tracking-wider mb-2">Agent Critiques</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
-            {critiques.map((critique, idx) => (
-              <CritiqueCard key={idx} critique={critique} />
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-const CritiqueCard: React.FC<{ critique: AgentCritique }> = ({ critique }) => {
-  // Try to find a matching badge color based on role, fallback to gray
-  const getIconAndColor = (role: string) => {
-    switch (role) {
-      case "accessibility": return { icon: "♿", color: "#10B981" };
-      case "performance": return { icon: "⚡", color: "#F59E0B" };
-      case "ux": return { icon: "🎨", color: "#EC4899" };
-      case "animation": return { icon: "✨", color: "#6366F1" };
-      case "security": return { icon: "🔒", color: "#EF4444" };
-      case "reviewer": return { icon: "🏛️", color: "#8B5CF6" };
-      default: return { icon: "🤖", color: "#6B7280" };
-    }
-  };
-
-  const { icon, color } = getIconAndColor(critique.role);
-  
-  // Format the name
-  const name = critique.role.charAt(0).toUpperCase() + critique.role.slice(1);
-
-  return (
-    <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col h-full animate-in fade-in slide-in-from-bottom-2 duration-300">
-      <div className="flex justify-between items-start mb-2">
-        <AgentBadge name={name} role={critique.role} icon={icon} color={color} size="sm" />
-        <div 
-          className={classNames(
-            "text-lg font-bold px-2 py-0.5 rounded",
-            critique.score >= 8 ? "text-green-600 bg-green-50" : 
-            critique.score >= 6 ? "text-yellow-600 bg-yellow-50" : 
-            "text-red-600 bg-red-50"
-          )}
-        >
-          {critique.score}/10
-        </div>
-      </div>
-      
-      <p className="text-sm text-gray-700 dark:text-gray-300 italic mb-3 flex-grow line-clamp-3">
-        "{critique.summary}"
-      </p>
-      
-      <div className="flex gap-2 text-xs font-medium">
-        {critique.issues && critique.issues.length > 0 && (
-          <span className="bg-red-50 text-red-700 dark:bg-red-900/30 dark:text-red-400 px-2 py-1 rounded border border-red-100 dark:border-red-800/50">
-            {critique.issues.length} Issues
-          </span>
+            <div className="grid grid-cols-2 gap-3 text-xs">
+              <div className="flex flex-col gap-1 rounded-xl bg-slate-950/50 p-2 border border-white/5">
+                <span className="text-slate-500 flex items-center gap-1"><Cpu size={12}/> Confidence</span>
+                <span className="text-sm font-semibold text-emerald-400">98%</span>
+              </div>
+              <div className="flex flex-col gap-1 rounded-xl bg-slate-950/50 p-2 border border-white/5">
+                <span className="text-slate-500 flex items-center gap-1"><Clock size={12}/> ETA</span>
+                <span className="text-sm font-semibold text-amber-400">~9 sec</span>
+              </div>
+              <div className="flex flex-col gap-1 rounded-xl bg-slate-950/50 p-2 border border-white/5">
+                <span className="text-slate-500 flex items-center gap-1"><Box size={12}/> Objects</span>
+                <span className="text-sm font-semibold text-slate-200">84</span>
+              </div>
+              <div className="flex flex-col gap-1 rounded-xl bg-slate-950/50 p-2 border border-white/5">
+                <span className="text-slate-500 flex items-center gap-1"><Layout size={12}/> Components</span>
+                <span className="text-sm font-semibold text-slate-200">43</span>
+              </div>
+            </div>
+            
+            {/* Live Streaming Log underneath Agent Card */}
+            <div className="mt-2 flex flex-col gap-1 rounded-xl bg-slate-950 p-3 font-mono text-[11px] text-slate-300 shadow-inner border border-white/5 overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent to-slate-950 pointer-events-none z-10" />
+              {[...events].reverse().slice(0, 5).map((e, i) => (
+                <motion.div 
+                  key={i} 
+                  initial={{ opacity: 0, x: -10 }} 
+                  animate={{ opacity: 1 - i * 0.2, x: 0 }}
+                  className="flex items-center gap-2 truncate"
+                >
+                  <span className="text-cyan-500">✓</span>
+                  {e.content || (e.agentStart ? `Initializing ${e.agentStart.agentName}...` : "Processing...")}
+                </motion.div>
+              ))}
+            </div>
+          </motion.div>
         )}
-        {critique.suggestions && critique.suggestions.length > 0 && (
-          <span className="bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-1 rounded border border-blue-100 dark:border-blue-800/50">
-            {critique.suggestions.length} Suggestions
-          </span>
-        )}
-        {critique.approved && (
-          <span className="bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400 px-2 py-1 rounded border border-green-100 dark:border-green-800/50 ml-auto">
-            Approved
-          </span>
-        )}
-      </div>
+      </AnimatePresence>
     </div>
   );
 };

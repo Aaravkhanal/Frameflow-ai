@@ -41,7 +41,10 @@ import AuthModal from "./components/auth/AuthModal";
 import { useAuthStore } from "./store/authStore";
 import { AiEditCommit, Commit } from "./components/commits/types";
 import { createCommit } from "./components/commits/utils";
-import { AgentOrchestrationPanel } from "./components/agent/AgentOrchestrationPanel";
+import { WorkflowPanel } from "./components/sidebar/WorkflowPanel";
+import { CommandPalette } from "./components/core/CommandPalette";
+import { BottomLogPanel } from "./components/core/BottomLogPanel";
+import { FloatingToolbox } from "./components/core/FloatingToolbox";
 
 function App() {
   const {
@@ -75,7 +78,6 @@ function App() {
     // Outputs
     appendExecutionConsole,
     resetExecutionConsoles,
-    orchestrationEvents,
     appendOrchestrationEvent,
     resetOrchestrationEvents,
   } = useProjectStore();
@@ -120,7 +122,7 @@ function App() {
   const lastAssistantEventIdRef = useRef<Record<number, string>>({});
   const lastToolEventIdRef = useRef<Record<number, string>>({});
 
-  const [isHistoryOpen, setIsHistoryOpen] = useState(false);
+  const [leftNavMode, setLeftNavMode] = useState<"editor" | "workflow" | "assets" | "history">("editor");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [mobilePane, setMobilePane] = useState<"preview" | "chat">("preview");
   const [isDesignSystemsModalOpen, setIsDesignSystemsModalOpen] =
@@ -794,7 +796,7 @@ function App() {
   const showContentPanel =
     appState === AppState.CODING ||
     appState === AppState.CODE_READY ||
-    isHistoryOpen;
+    leftNavMode === "history";
   const isCodingOrReady =
     appState === AppState.CODING || appState === AppState.CODE_READY;
   const showMobileChatPane = showContentPanel && mobilePane === "chat";
@@ -819,37 +821,48 @@ function App() {
         className="sticky top-0 z-50 lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-16 lg:flex-col"
       >
         <IconStrip
-          isHistoryOpen={isHistoryOpen}
-          isEditorOpen={!isHistoryOpen && !isSettingsOpen}
+          isHistoryOpen={leftNavMode === "history"}
+          isEditorOpen={leftNavMode === "editor" && !isSettingsOpen}
+          isWorkflowOpen={leftNavMode === "workflow" && !isSettingsOpen}
+          isAssetsOpen={leftNavMode === "assets" && !isSettingsOpen}
           isSettingsOpen={isSettingsOpen}
           showHistory={isCodingOrReady}
           showEditor={isCodingOrReady}
           onToggleHistory={() => {
-            setIsHistoryOpen((prev) => !prev);
+            setLeftNavMode("history");
             setIsSettingsOpen(false);
             setMobilePane("chat");
           }}
           onToggleEditor={() => {
-            setIsHistoryOpen(false);
+            setLeftNavMode("editor");
             setIsSettingsOpen(false);
             setMobilePane("preview");
           }}
+          onToggleWorkflow={() => {
+            setLeftNavMode("workflow");
+            setIsSettingsOpen(false);
+            setMobilePane("chat");
+          }}
+          onToggleAssets={() => {
+            setLeftNavMode("assets");
+            setIsSettingsOpen(false);
+            setMobilePane("chat");
+          }}
           onLogoClick={() => {
             reset();
-            setIsHistoryOpen(false);
+            setLeftNavMode("editor");
             setIsSettingsOpen(false);
             setAppState(AppState.INITIAL);
             setMobilePane("preview");
           }}
           onNewProject={() => {
             reset();
-            setIsHistoryOpen(false);
+            setLeftNavMode("editor");
             setIsSettingsOpen(false);
             setMobilePane("preview");
           }}
           onOpenSettings={() => {
             setIsSettingsOpen(true);
-            setIsHistoryOpen(false);
           }}
         />
       </div>
@@ -859,7 +872,7 @@ function App() {
           <div className="grid grid-cols-2 rounded-xl bg-slate-950/60 p-1 border border-white/10">
             <button
               onClick={() => {
-                setIsHistoryOpen(false);
+                setLeftNavMode("editor");
                 setMobilePane("preview");
               }}
               className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
@@ -891,13 +904,13 @@ function App() {
             showMobileChatPane ? "block" : "hidden lg:flex"
           }`}
         >
-            {isHistoryOpen ? (
+            {leftNavMode === "history" ? (
               <div className="flex-1 overflow-y-auto sidebar-scrollbar-stable px-4">
                 <div className="mt-3">
                   <div className="flex items-center justify-between mb-3 px-1">
                     <h2 className="text-xs font-medium uppercase tracking-wider text-gray-400 dark:text-gray-500">Versions</h2>
                     <button
-                      onClick={() => setIsHistoryOpen(false)}
+                      onClick={() => setLeftNavMode("editor")}
                       className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors"
                     >
                       <LuChevronLeft className="w-3.5 h-3.5" />
@@ -907,6 +920,12 @@ function App() {
                   <HistoryDisplay />
                 </div>
               </div>
+            ) : leftNavMode === "workflow" ? (
+              <div className="flex-1 overflow-y-auto">
+                <WorkflowPanel />
+              </div>
+            ) : leftNavMode === "assets" ? (
+              <div className="flex-1 p-4 text-center text-slate-500 mt-10">Assets coming soon...</div>
             ) : (
               <>
                 {IS_RUNNING_ON_CLOUD && !settings.openAiApiKey && (
@@ -915,32 +934,23 @@ function App() {
                   </div>
                 )}
 
-                {appState === AppState.CODING && orchestrationEvents.length > 0 ? (
-                  <div className="flex-1 p-4 overflow-y-auto">
-                    <AgentOrchestrationPanel
-                      events={orchestrationEvents}
-                      isActive={true}
-                    />
-                  </div>
-                ) : (
-                  (appState === AppState.CODING || appState === AppState.CODE_READY) && (
-                    <Sidebar
-                      doUpdate={doUpdate}
-                      regenerate={regenerate}
-                      cancelCodeGeneration={cancelCodeGeneration}
-                      designSystem={{
-                        designSystems,
-                        selectedDesignSystemId: settings.selectedDesignSystemId,
-                        setSelectedDesignSystemId,
-                        onAddNew: handleAddNewDesignSystem,
-                        onManage: () => openDesignSystemsManager(),
-                      }}
-                      onOpenVersions={() => {
-                        setIsHistoryOpen(true);
-                        setMobilePane("chat");
-                      }}
-                    />
-                  )
+                {(appState === AppState.CODING || appState === AppState.CODE_READY) && (
+                  <Sidebar
+                    doUpdate={doUpdate}
+                    regenerate={regenerate}
+                    cancelCodeGeneration={cancelCodeGeneration}
+                    designSystem={{
+                      designSystems,
+                      selectedDesignSystemId: settings.selectedDesignSystemId,
+                      setSelectedDesignSystemId,
+                      onAddNew: handleAddNewDesignSystem,
+                      onManage: () => openDesignSystemsManager(),
+                    }}
+                    onOpenVersions={() => {
+                      setLeftNavMode("history");
+                      setMobilePane("chat");
+                    }}
+                  />
                 )}
               </>
             )}
@@ -982,7 +992,7 @@ function App() {
               <PreviewPane
                 settings={settings}
                 onOpenVersions={() => {
-                  setIsHistoryOpen(true);
+                  setLeftNavMode("history");
                   setMobilePane("chat");
                 }}
               />
@@ -1003,6 +1013,9 @@ function App() {
         deleteDesignSystem={deleteDesignSystem}
       />
       <AuthModal />
+      <CommandPalette />
+      <BottomLogPanel />
+      <FloatingToolbox />
     </div>
   );
 }

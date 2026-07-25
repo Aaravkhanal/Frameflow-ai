@@ -470,6 +470,8 @@ class ModelSelectionStage:
                 )
             return list(VIDEO_VARIANT_MODELS)
 
+        nvidia_key = os.environ.get("NVIDIA_API_KEY_GLM") or os.environ.get("NVIDIA_API_KEY_KIMI")
+
         # Define models based on available API keys
         if gemini_api_key and anthropic_api_key and openai_api_key:
             if input_mode == "text" and generation_type == "create":
@@ -490,8 +492,10 @@ class ModelSelectionStage:
             models = list(ANTHROPIC_ONLY_MODELS)
         elif openai_api_key:
             models = list(OPENAI_ONLY_MODELS)
+        elif nvidia_key:
+            models = [Llm.GLM_5_2]
         else:
-            raise Exception("No OpenAI or Anthropic key")
+            raise Exception("No valid LLM provider API key found")
 
         # Cycle through models: [A, B] with num=5 becomes [A, B, A, B, A]
         selected_models: List[Llm] = []
@@ -876,7 +880,7 @@ class CodeGenerationMiddleware(Middleware):
             # Check if all variants failed
             if len(context.variant_completions) == 0:
                 await context.throw_error(
-                    "Error generating code. Please ensure at least one valid API key (OpenAI, Anthropic, or Gemini) is set in Settings and has active credits."
+                    "Error generating code. This is likely because your API key is invalid, your account is out of credits, or you hit a rate limit (429 Too Many Requests). Check your OpenAI/Anthropic/Gemini dashboard, or see the backend terminal for exact logs."
                 )
                 return  # Don't continue the pipeline
 

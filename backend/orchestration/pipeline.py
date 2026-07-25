@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import time
 import traceback
 import uuid
@@ -296,7 +297,37 @@ class OrchestratedPipeline:
             await self._send_agent_complete(AgentRole.CODER, model, score=None)
             return code
         except Exception as e:
-            print(f"[ORCHESTRATION] Coder agent failed: {e}")
+            print(f"[ORCHESTRATION] Coder agent with model {model.value} failed: {e}")
+            
+            # Check for alternative model to failover gracefully (e.g. NVIDIA/OpenAI/Anthropic when Gemini 429s)
+            fallback_model = None
+            has_nvidia = bool(os.environ.get("NVIDIA_API_KEY_GLM") or os.environ.get("NVIDIA_API_KEY_KIMI"))
+            if model != Llm.GLM_5_2 and has_nvidia:
+                fallback_model = Llm.GLM_5_2
+            elif model != Llm.GPT_5_5_LOW and self.openai_api_key:
+                fallback_model = Llm.GPT_5_5_LOW
+            elif model != Llm.CLAUDE_SONNET_4_6 and self.anthropic_api_key:
+                fallback_model = Llm.CLAUDE_SONNET_4_6
+            elif model != Llm.GEMINI_3_FLASH_PREVIEW_MINIMAL and self.gemini_api_key:
+                fallback_model = Llm.GEMINI_3_FLASH_PREVIEW_MINIMAL
+
+            if fallback_model:
+                print(f"[ORCHESTRATION] Attempting failover with secondary model: {fallback_model.value}")
+                try:
+                    await self._send_agent_start(AgentRole.CODER, fallback_model)
+                    code = await self._run_agent_with_tools(fallback_model, augmented_messages)
+                    if code:
+                        duration_ms = int((time.monotonic() - start) * 1000)
+                        self._telemetry.agent_turns.append(AgentTurnRecord(
+                            agent_role=AgentRole.CODER.value,
+                            model=fallback_model.value,
+                            duration_ms=duration_ms,
+                        ))
+                        await self._send_agent_complete(AgentRole.CODER, fallback_model, score=None)
+                        return code
+                except Exception as e2:
+                    print(f"[ORCHESTRATION] Fallback model {fallback_model.value} also failed: {e2}")
+
             traceback.print_exc()
             await self._send_agent_complete(AgentRole.CODER, model, score=None, error=str(e))
             return ""
@@ -638,6 +669,8 @@ class OrchestratedPipeline:
             return await self._run_openai_simple(model, messages)
         elif provider == "anthropic":
             return await self._run_anthropic_simple(model, messages)
+        elif provider == "nvidia":
+            return await self._run_nvidia_simple(model, messages)
         else:
             raise ValueError(f"No lightweight runner for provider: {provider}")
 
@@ -753,6 +786,31 @@ class OrchestratedPipeline:
 
         return response.content[0].text if response.content else ""
 
+    async def _run_nvidia_simple(
+        self, model: Llm, messages: List[ChatCompletionMessageParam]
+    ) -> str:
+        """Simple NVIDIA NIM call without tools."""
+        from openai import AsyncOpenAI
+        from llm import NVIDIA_MODEL_API_NAME
+        from config import NVIDIA_BASE_URL, NVIDIA_API_KEY_GLM, NVIDIA_API_KEY_KIMI
+
+        api_key = os.environ.get("NVIDIA_API_KEY_GLM") or NVIDIA_API_KEY_GLM or os.environ.get("NVIDIA_API_KEY_KIMI") or NVIDIA_API_KEY_KIMI
+        if not api_key:
+            raise Exception("NVIDIA API key missing")
+
+        client = AsyncOpenAI(api_key=api_key, base_url=NVIDIA_BASE_URL)
+        api_name = NVIDIA_MODEL_API_NAME.get(model, "z-ai/glm-5.2")
+
+        kwargs: Dict[str, Any] = {
+            "model": api_name,
+            "messages": messages,
+            "temperature": 0.3,
+            "max_tokens": 4000,
+        }
+
+        response = await client.chat.completions.create(**kwargs)
+        return response.choices[0].message.content or ""
+
     # ------------------------------------------------------------------
     # Model resolution
     # ------------------------------------------------------------------
@@ -774,12 +832,16 @@ class OrchestratedPipeline:
             return bool(self.openai_api_key)
         if provider == "anthropic":
             return bool(self.anthropic_api_key)
+        if provider == "nvidia":
+            return bool(os.environ.get("NVIDIA_API_KEY_GLM") or os.environ.get("NVIDIA_API_KEY_KIMI"))
         return False
 
     def _best_available_model(self) -> Optional[Llm]:
         """Return the best model we have a key for."""
         if self.gemini_api_key:
             return Llm.GEMINI_3_FLASH_PREVIEW_MINIMAL
+        if os.environ.get("NVIDIA_API_KEY_GLM"):
+            return Llm.GLM_5_2
         if self.openai_api_key:
             return Llm.GPT_5_5_LOW
         if self.anthropic_api_key:
