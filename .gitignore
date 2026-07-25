@@ -1,0 +1,30 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+
+# Local Databases & Secrets
+*.db
+*.sqlite
+*.sqlite3
+backend/data/*.db
+.env
+.env.*
+!.env.example
+frontend/.env.local
+
+# Run logs & Temp outputs
+run_logs/
+backend/local_assets/*
+backend/evals_data/
+evals_data/
+walkthrough/
+
+# IDE & OS Files
+.DS_Store
+.idea/
+.vscode/
+.aider*
+.rodney
