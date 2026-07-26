@@ -41,7 +41,9 @@ def serialize_gemini_tools(tools: List[CanonicalToolDefinition]) -> List[types.T
 
 
 def _get_gemini_api_model_name(model: Llm) -> str:
-    return "gemini-2.5-flash"
+    if "/" in model.value:
+        return model.value.split("/")[-1]
+    return model.value
 
 
 def _get_thinking_level_for_model(model: Llm) -> str:

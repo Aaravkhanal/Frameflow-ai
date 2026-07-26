@@ -85,7 +85,7 @@ async def test_gemini_provider_appends_multimodal_function_response_parts() -> N
         ]
     }
 
-    response_parts = cast(Any, function_response.parts)
+    response_parts = cast(Any, function_response).parts
     assert len(response_parts) == 1
     inline_data = response_parts[0].inline_data
     assert inline_data.mime_type == "image/png"

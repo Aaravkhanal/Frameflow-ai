@@ -42,22 +42,15 @@ from openai.types.chat import ChatCompletionMessageParam
 
 from utils import print_prompt_preview
 
-# WebSocket message types
-MessageType = Literal[
-    "chunk",
-    "status",
-    "setCode",
-    "error",
-    "variantComplete",
-    "variantError",
-    "variantCount",
-    "variantModels",
-    "thinking",
-    "assistant",
-    "toolStart",
-    "toolResult",
-]
-from prompts.pipeline import build_prompt_messages
+from core.pipeline import (
+    MessageType,
+    PipelineContext,
+    Middleware,
+    Pipeline,
+    WebSocketCommunicator,
+)
+from core.errors import format_llm_generation_error
+
 from prompts.request_parsing import parse_prompt_content, parse_prompt_history
 from prompts.prompt_types import PromptHistoryMessage, Stack, UserTurnInput
 from uploaded_assets import (
@@ -79,178 +72,9 @@ from routes.model_choice_sets import (
     VIDEO_VARIANT_MODELS,
 )
 
-# from utils import pprint_prompt
 from ws.constants import APP_ERROR_WEB_SOCKET_CODE  # type: ignore
 
-
 router = APIRouter()
-
-
-@dataclass
-class PipelineContext:
-    """Context object that carries state through the pipeline"""
-
-    websocket: WebSocket
-    ws_comm: "WebSocketCommunicator | None" = None
-    params: Dict[str, Any] = field(default_factory=dict)
-    extracted_params: "ExtractedParams | None" = None
-    prompt_messages: List[ChatCompletionMessageParam] = field(default_factory=list)
-    variant_models: List[Llm] = field(default_factory=list)
-    completions: List[str] = field(default_factory=list)
-    variant_completions: Dict[int, str] = field(default_factory=dict)
-    metadata: Dict[str, Any] = field(default_factory=dict)
-
-    @property
-    def send_message(self):
-        assert self.ws_comm is not None
-        return self.ws_comm.send_message
-
-    @property
-    def throw_error(self):
-        assert self.ws_comm is not None
-        return self.ws_comm.throw_error
-
-
-class Middleware(ABC):
-    """Base class for all pipeline middleware"""
-
-    @abstractmethod
-    async def process(
-        self, context: PipelineContext, next_func: Callable[[], Awaitable[None]]
-    ) -> None:
-        """Process the context and call the next middleware"""
-        pass
-
-
-class Pipeline:
-    """Pipeline for processing WebSocket code generation requests"""
-
-    def __init__(self):
-        self.middlewares: List[Middleware] = []
-
-    def use(self, middleware: Middleware) -> "Pipeline":
-        """Add a middleware to the pipeline"""
-        self.middlewares.append(middleware)
-        return self
-
-    async def execute(self, websocket: WebSocket) -> None:
-        """Execute the pipeline with the given WebSocket"""
-        context = PipelineContext(websocket=websocket)
-
-        # Build the middleware chain
-        async def start(ctx: PipelineContext):
-            pass  # End of pipeline
-
-        chain = start
-        for middleware in reversed(self.middlewares):
-            chain = self._wrap_middleware(middleware, chain)
-
-        await chain(context)
-
-    def _wrap_middleware(
-        self,
-        middleware: Middleware,
-        next_func: Callable[[PipelineContext], Awaitable[None]],
-    ) -> Callable[[PipelineContext], Awaitable[None]]:
-        """Wrap a middleware with its next function"""
-
-        async def wrapped(context: PipelineContext) -> None:
-            await middleware.process(context, lambda: next_func(context))
-
-        return wrapped
-
-
-class WebSocketCommunicator:
-    """Handles WebSocket communication with consistent error handling"""
-
-    def __init__(self, websocket: WebSocket):
-        self.websocket = websocket
-        self.is_closed = False
-
-    async def accept(self) -> None:
-        """Accept the WebSocket connection"""
-        await self.websocket.accept()
-        print("Incoming websocket connection...")
-
-    async def send_message(
-        self,
-        type: MessageType,
-        value: str | None,
-        variantIndex: int,
-        data: Dict[str, Any] | None = None,
-        eventId: str | None = None,
-    ) -> None:
-        """Send a message to the client with debug logging"""
-        if self.is_closed:
-            return
-
-        # Print for debugging on the backend
-        if type == "error":
-            print(f"Error (variant {variantIndex + 1}): {value}")
-        elif type == "status":
-            print(f"Status (variant {variantIndex + 1}): {value}")
-        elif type == "variantComplete":
-            print(f"Variant {variantIndex + 1} complete")
-        elif type == "variantError":
-            print(f"Variant {variantIndex + 1} error: {value}")
-
-        try:
-            payload: Dict[str, Any] = {"type": type, "variantIndex": variantIndex}
-            if value is not None:
-                payload["value"] = value
-            if data is not None:
-                payload["data"] = data
-            if eventId is not None:
-                payload["eventId"] = eventId
-            await self.websocket.send_json(payload)
-        except (
-            ConnectionClosedOK,
-            ConnectionClosedError,
-            RuntimeError,
-            WebSocketDisconnect,
-        ):
-            print(f"WebSocket closed by client, skipping message: {type}")
-            self.is_closed = True
-
-    async def throw_error(self, message: str) -> None:
-        """Send an error message and close the connection"""
-        print(message)
-        if not self.is_closed:
-            try:
-                await self.websocket.send_json({"type": "error", "value": message})
-                await self.websocket.close(APP_ERROR_WEB_SOCKET_CODE)
-            except (
-                ConnectionClosedOK,
-                ConnectionClosedError,
-                RuntimeError,
-                WebSocketDisconnect,
-            ):
-                print("WebSocket already closed by client")
-            self.is_closed = True
-
-    async def receive_params(self) -> Dict[str, Any]:
-        """Receive parameters from the client"""
-        try:
-            params: Dict[str, Any] = await self.websocket.receive_json()
-        except WebSocketDisconnect:
-            self.is_closed = True
-            raise
-        print("Received params")
-        return params
-
-    async def close(self) -> None:
-        """Close the WebSocket connection"""
-        if not self.is_closed:
-            try:
-                await self.websocket.close()
-            except (
-                ConnectionClosedOK,
-                ConnectionClosedError,
-                RuntimeError,
-                WebSocketDisconnect,
-            ):
-                pass  # Already closed by client
-            self.is_closed = True
 
 
 @dataclass
@@ -471,7 +295,8 @@ class ModelSelectionStage:
                 )
             return list(VIDEO_VARIANT_MODELS)
 
-        nvidia_key = os.environ.get("NVIDIA_API_KEY_GLM") or os.environ.get("NVIDIA_API_KEY_KIMI")
+        from config import settings
+        nvidia_key = settings.NVIDIA_API_KEY_GLM or settings.NVIDIA_API_KEY_KIMI
 
         # Define models based on available API keys
         if gemini_api_key and anthropic_api_key and openai_api_key:
@@ -558,7 +383,7 @@ class AgenticGenerationStage:
 
     def __init__(
         self,
-        send_message: Callable[[MessageType, str | None, int, Dict[str, Any] | None, str | None], Coroutine[Any, Any, None]],
+        send_message: Callable[[str, str | None, int, Dict[str, Any] | None, str | None], Coroutine[Any, Any, None]],
         openai_api_key: str | None,
         openai_base_url: str | None,
         anthropic_api_key: str | None,
@@ -698,14 +523,7 @@ class AgenticGenerationStage:
             print(f"Error in variant {index + 1}: {err_str}")
             traceback.print_exception(type(e), e, e.__traceback__)
 
-            if "429" in err_str or "quota" in err_str.lower() or "resource_exhausted" in err_str.lower():
-                user_msg = "API Rate Limit or Quota Exceeded (429). Please check your API key quota or try another model in Settings."
-            elif "credit balance is too low" in err_str.lower() or "invalid_api_key" in err_str.lower():
-                user_msg = "Anthropic API Error: Credit balance is too low or invalid key. Please update your Anthropic API key in Settings."
-            elif "authenticationerror" in err_str.lower() or "invalid api key" in err_str.lower():
-                user_msg = "Authentication Error: Invalid API key. Please check your API keys in Settings."
-            else:
-                user_msg = f"Generation error: {err_str[:250]}"
+            user_msg = format_llm_generation_error(e)
 
             await self.send_message("variantError", user_msg, index, None, None)
             return ""
@@ -896,12 +714,8 @@ class CodeGenerationMiddleware(Middleware):
         except Exception as e:
             err_msg = str(e)
             print(f"[GENERATE_CODE] Unexpected error: {err_msg}")
-            if "429" in err_msg or "quota" in err_msg.lower() or "resource_exhausted" in err_msg.lower():
-                user_msg = "LLM API Rate Limit or Quota Exceeded (429). Please check your API key quota or try another model in Settings."
-            elif "credit balance is too low" in err_msg.lower() or "invalid_api_key" in err_msg.lower() or "authenticationerror" in err_msg.lower():
-                user_msg = "API Key Error: Invalid key or insufficient balance. Please update your API key in Settings."
-            else:
-                user_msg = f"Generation error: {err_msg[:200]}"
+            
+            user_msg = format_llm_generation_error(e)
 
             await context.throw_error(user_msg)
             return  # Don't continue the pipeline

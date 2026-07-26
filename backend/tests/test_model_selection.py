@@ -213,12 +213,21 @@ class TestModelSelectionNoKeys:
 
     @pytest.mark.asyncio
     async def test_no_keys_raises_error(self):
-        """No keys: Should raise an exception"""
-        with pytest.raises(Exception, match="No API key"):
-            await self.model_selector.select_models(
-                generation_type="create",
-                input_mode="text",
-                openai_api_key=None,
-                anthropic_api_key=None,
-                gemini_api_key=None,
-            )
+        from config import settings
+        original_glm = settings.NVIDIA_API_KEY_GLM
+        original_kimi = settings.NVIDIA_API_KEY_KIMI
+        settings.NVIDIA_API_KEY_GLM = None
+        settings.NVIDIA_API_KEY_KIMI = None
+        try:
+            """No keys: Should raise an exception"""
+            with pytest.raises(Exception, match="No API key"):
+                await self.model_selector.select_models(
+                    generation_type="create",
+                    input_mode="text",
+                    openai_api_key=None,
+                    anthropic_api_key=None,
+                    gemini_api_key=None,
+                )
+        finally:
+            settings.NVIDIA_API_KEY_GLM = original_glm
+            settings.NVIDIA_API_KEY_KIMI = original_kimi

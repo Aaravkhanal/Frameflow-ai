@@ -1,66 +1,69 @@
 import os
+from typing import List
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic import Field
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(extra='ignore')
+
+    OPENAI_API_KEY: str | None = None
+    ANTHROPIC_API_KEY: str | None = None
+    GEMINI_API_KEY: str | None = None
+    OPENAI_BASE_URL: str | None = None
+    REPLICATE_API_KEY: str | None = None
+
+    NVIDIA_API_KEY_GLM: str | None = None
+    NVIDIA_API_KEY_KIMI: str | None = None
+    NVIDIA_BASE_URL: str = "https://integrate.api.nvidia.com/v1"
+
+    CONSENSUS_ENABLED: bool = False
+    ORCHESTRATION_ENABLED: bool = True
+    ORCHESTRATION_QUALITY_THRESHOLD: float = 6.5
+    ORCHESTRATION_MAX_DEBATE_ROUNDS: int = 2
+    ORCHESTRATION_CONFIDENCE_TARGET: float = 7.5
+
+    AGENT_TIMEOUT_SECONDS: int = 300
+
+    IS_DEBUG_ENABLED: bool = False
+    DEBUG_DIR: str = ""
+    PROMPT_REPORTS_ENABLED: bool = False
+    
+    LOCAL_ASSET_DIR: str = os.path.join(os.path.dirname(__file__), "local_assets")
+    LOCAL_ASSET_BASE_URL: str = "http://127.0.0.1:7001"
+
+    IS_PROD: bool = False
+    ALLOWED_ORIGINS: str = ""
+
+    SCREENSHOT_TIMEOUT_MS: int = 30000
+    SCREENSHOT_VIEWPORT_WIDTH_DESKTOP: int = 1280
+    SCREENSHOT_VIEWPORT_HEIGHT_DESKTOP: int = 832
+    SCREENSHOT_VIEWPORT_WIDTH_MOBILE: int = 375
+    SCREENSHOT_VIEWPORT_HEIGHT_MOBILE: int = 812
+
+settings = Settings()
 
 NUM_VARIANTS = 4
 NUM_VARIANTS_VIDEO = 2
 
-# LLM-related
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", None)
-ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", None)
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", None)
-OPENAI_BASE_URL = os.environ.get("OPENAI_BASE_URL", None)
-
-# Image generation (optional)
-REPLICATE_API_KEY = os.environ.get("REPLICATE_API_KEY", None)
-
-# NVIDIA NIM (OpenAI-compatible endpoint for GLM-5.2 and Kimi K2.6)
-NVIDIA_API_KEY_GLM = os.environ.get("NVIDIA_API_KEY_GLM", None)
-NVIDIA_API_KEY_KIMI = os.environ.get("NVIDIA_API_KEY_KIMI", None)
-NVIDIA_BASE_URL = os.environ.get(
-    "NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1"
-)
-
-# Multi-model consensus pipeline
-# When enabled, multiple models generate + critique each other before the
-# final output is returned to the user.
-CONSENSUS_ENABLED = (
-    os.environ.get("CONSENSUS_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
-)
-
-# Multi-agent Orchestration Engine
-ORCHESTRATION_ENABLED = (
-    os.environ.get("ORCHESTRATION_ENABLED", "true").strip().lower() in {"1", "true", "yes", "on"}
-)
-ORCHESTRATION_QUALITY_THRESHOLD = float(os.environ.get("ORCHESTRATION_QUALITY_THRESHOLD", "6.5"))
-ORCHESTRATION_MAX_DEBATE_ROUNDS = int(os.environ.get("ORCHESTRATION_MAX_DEBATE_ROUNDS", "2"))
-ORCHESTRATION_CONFIDENCE_TARGET = float(os.environ.get("ORCHESTRATION_CONFIDENCE_TARGET", "7.5"))
-
-# Agent settings
-# Maximum wall-clock seconds a single agent run is allowed to take.
-# Override with AGENT_TIMEOUT_SECONDS env var.
-AGENT_TIMEOUT_SECONDS = int(os.environ.get("AGENT_TIMEOUT_SECONDS", 300))
-
-# Debugging-related
-# Use a proper string comparison so that IS_DEBUG_ENABLED=False in .env
-# does NOT accidentally enable debug mode (bool("False") is True).
-IS_DEBUG_ENABLED = (
-    os.environ.get("IS_DEBUG_ENABLED", "").strip().lower() in {"1", "true", "yes", "on"}
-)
-DEBUG_DIR = os.environ.get("DEBUG_DIR", "")
-
-# When enabled, every LLM request is written to run_logs/prompt_reports as a
-# JSON report viewable at /evals/prompt-reports.
-PROMPT_REPORTS_ENABLED = os.environ.get(
-    "PROMPT_REPORTS_ENABLED", ""
-).strip().lower() in {"1", "true", "yes", "on"}
-LOCAL_ASSET_DIR = os.environ.get(
-    "LOCAL_ASSET_DIR", os.path.join(os.path.dirname(__file__), "local_assets")
-)
-# Base URL the backend serves /local-assets from. The live (websocket) path
-# infers this per-request; the evals path has no request, so it uses this.
-LOCAL_ASSET_BASE_URL = os.environ.get("LOCAL_ASSET_BASE_URL", "http://127.0.0.1:7001")
-
-# Set to True when running in production (on the hosted version).
-# Use a proper string comparison — bool("False") is True.
-IS_PROD = (
-    os.environ.get("IS_PROD", "").strip().lower() in {"1", "true", "yes", "on"}
-)
+# Expose settings for backwards compatibility
+OPENAI_API_KEY = settings.OPENAI_API_KEY
+ANTHROPIC_API_KEY = settings.ANTHROPIC_API_KEY
+GEMINI_API_KEY = settings.GEMINI_API_KEY
+OPENAI_BASE_URL = settings.OPENAI_BASE_URL
+REPLICATE_API_KEY = settings.REPLICATE_API_KEY
+NVIDIA_API_KEY_GLM = settings.NVIDIA_API_KEY_GLM
+NVIDIA_API_KEY_KIMI = settings.NVIDIA_API_KEY_KIMI
+NVIDIA_BASE_URL = settings.NVIDIA_BASE_URL
+CONSENSUS_ENABLED = settings.CONSENSUS_ENABLED
+ORCHESTRATION_ENABLED = settings.ORCHESTRATION_ENABLED
+ORCHESTRATION_QUALITY_THRESHOLD = settings.ORCHESTRATION_QUALITY_THRESHOLD
+ORCHESTRATION_MAX_DEBATE_ROUNDS = settings.ORCHESTRATION_MAX_DEBATE_ROUNDS
+ORCHESTRATION_CONFIDENCE_TARGET = settings.ORCHESTRATION_CONFIDENCE_TARGET
+AGENT_TIMEOUT_SECONDS = settings.AGENT_TIMEOUT_SECONDS
+IS_DEBUG_ENABLED = settings.IS_DEBUG_ENABLED
+DEBUG_DIR = settings.DEBUG_DIR
+PROMPT_REPORTS_ENABLED = settings.PROMPT_REPORTS_ENABLED
+LOCAL_ASSET_DIR = settings.LOCAL_ASSET_DIR
+LOCAL_ASSET_BASE_URL = settings.LOCAL_ASSET_BASE_URL
+IS_PROD = settings.IS_PROD
+ALLOWED_ORIGINS = settings.ALLOWED_ORIGINS

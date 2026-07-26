@@ -11,7 +11,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from config import IS_DEBUG_ENABLED
+from config import settings
 from routes import (
     screenshot,
     generate_code,
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
-    debug_status = "ENABLED" if IS_DEBUG_ENABLED else "DISABLED"
+    debug_status = "ENABLED" if settings.IS_DEBUG_ENABLED else "DISABLED"
     logger.info(f"Backend startup complete. Debug mode is {debug_status}.")
 
     # Detect (and warm up) headless Chromium so the screenshot_preview tool is
@@ -62,24 +62,22 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
-# IMPORTANT: allow_origins=["*"] and allow_credentials=True cannot be used
-# together — the Fetch spec forbids credentials with a wildcard origin and
-# all modern browsers will reject such responses.
-#
-# In development (no ALLOWED_ORIGINS set) we allow the default Vite dev
-# server origin.  In production set ALLOWED_ORIGINS to a comma-separated
-# list of your actual frontend origins, e.g.:
-#   ALLOWED_ORIGINS=https://screenshottocode.com,https://www.screenshottocode.com
-_raw_origins = os.environ.get("ALLOWED_ORIGINS", "")
+_raw_origins = settings.ALLOWED_ORIGINS
 if _raw_origins.strip():
     _allow_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
 else:
-    # Development default — the Vite dev server and same-origin proxy
-    _allow_origins = [
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:7001",
-    ]
+    if settings.IS_PROD:
+        logger.error("ALLOWED_ORIGINS is not set. In production, this must be set.")
+        # We could raise an exception here, but for now we'll allow an empty list
+        # which will cause CORS errors on the frontend, enforcing security.
+        _allow_origins = []
+    else:
+        # Development default — the Vite dev server and same-origin proxy
+        _allow_origins = [
+            "http://localhost:5173",
+            "http://127.0.0.1:5173",
+            "http://localhost:7001",
+        ]
 
 app.add_middleware(
     CORSMiddleware,
@@ -107,7 +105,7 @@ app.include_router(figma.router)
 # Evals and prompt-reports expose internal LLM prompt contents; only register
 # them when IS_DEBUG_ENABLED is explicitly set.
 # ---------------------------------------------------------------------------
-if IS_DEBUG_ENABLED:
+if settings.IS_DEBUG_ENABLED:
     app.include_router(evals.router)
     app.include_router(prompt_reports.router)
     app.include_router(orchestration.router)
@@ -119,4 +117,4 @@ if IS_DEBUG_ENABLED:
 # ---------------------------------------------------------------------------
 @app.get("/health")
 async def health() -> JSONResponse:
-    return JSONResponse({"status": "ok", "debug": IS_DEBUG_ENABLED})
+    return JSONResponse({"status": "ok", "debug": settings.IS_DEBUG_ENABLED})

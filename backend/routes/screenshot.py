@@ -9,6 +9,8 @@ import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from config import settings
+
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
@@ -135,8 +137,11 @@ async def capture_screenshot(
         }
 
         if device == "desktop":
-            params["viewport_width"] = "1280"
-            params["viewport_height"] = "832"
+            params["viewport_width"] = str(settings.SCREENSHOT_VIEWPORT_WIDTH_DESKTOP)
+            params["viewport_height"] = str(settings.SCREENSHOT_VIEWPORT_HEIGHT_DESKTOP)
+        else:
+            params["viewport_width"] = str(settings.SCREENSHOT_VIEWPORT_WIDTH_MOBILE)
+            params["viewport_height"] = str(settings.SCREENSHOT_VIEWPORT_HEIGHT_MOBILE)
 
         try:
             async with httpx.AsyncClient(timeout=60) as client:
@@ -152,11 +157,12 @@ async def capture_screenshot(
         from playwright.async_api import async_playwright
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
-            context = await browser.new_context(
-                viewport={"width": 1280, "height": 832} if device == "desktop" else {"width": 375, "height": 812}
-            )
+            
+            viewport = {"width": settings.SCREENSHOT_VIEWPORT_WIDTH_DESKTOP, "height": settings.SCREENSHOT_VIEWPORT_HEIGHT_DESKTOP} if device == "desktop" else {"width": settings.SCREENSHOT_VIEWPORT_WIDTH_MOBILE, "height": settings.SCREENSHOT_VIEWPORT_HEIGHT_MOBILE}
+            context = await browser.new_context(viewport=viewport)
+            
             page = await context.new_page()
-            await page.goto(target_url, wait_until="domcontentloaded", timeout=30000)
+            await page.goto(target_url, wait_until="domcontentloaded", timeout=settings.SCREENSHOT_TIMEOUT_MS)
             await page.wait_for_timeout(1000)
             screenshot_bytes = await page.screenshot(full_page=True)
             await browser.close()

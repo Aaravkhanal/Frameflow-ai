@@ -9,14 +9,14 @@ export const IS_RUNNING_ON_CLOUD =
 const SAME_ORIGIN_HTTP =
   typeof window !== "undefined"
     ? window.location.origin
-    : "http://127.0.0.1:5173";
+    : IS_RUNNING_ON_CLOUD ? "" : "http://127.0.0.1:5173";
 const SAME_ORIGIN_WS = SAME_ORIGIN_HTTP.replace(/^http/, "ws");
 
 export const WS_BACKEND_URL =
-  import.meta.env.VITE_WS_BACKEND_URL || SAME_ORIGIN_WS;
+  import.meta.env.VITE_WS_BACKEND_URL || (IS_RUNNING_ON_CLOUD && !SAME_ORIGIN_WS ? "" : SAME_ORIGIN_WS);
 
 export const HTTP_BACKEND_URL =
-  import.meta.env.VITE_HTTP_BACKEND_URL || SAME_ORIGIN_HTTP;
+  import.meta.env.VITE_HTTP_BACKEND_URL || (IS_RUNNING_ON_CLOUD && !SAME_ORIGIN_HTTP ? "" : SAME_ORIGIN_HTTP);
 
 export const PICO_BACKEND_FORM_SECRET =
   import.meta.env.VITE_PICO_BACKEND_FORM_SECRET || null;
