@@ -331,6 +331,10 @@ function PreviewPane({ settings, onOpenVersions }: Props) {
         isOpen={isA11yModalOpen}
         onClose={() => setIsA11yModalOpen(false)}
         auditResult={a11yResult}
+        onApplyFixes={(fixedCode) => {
+          useAppStore.getState().setUpdateInstruction(fixedCode);
+          toast.success("Accessibility fixes loaded into the prompt box. Click 'Update' to apply them.");
+        }}
       />
 
       <ExportProjectModal

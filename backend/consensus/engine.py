@@ -111,6 +111,29 @@ class ConsensusGenerationStage:
             is_synthesis=True
         )
 
+        await self.send_message("status", "Phase 3: Evaluating Quality & Fidelity...", 0, None, None)
+        try:
+            from consensus.quality_scorer import evaluate_code_quality
+            quality_result = await evaluate_code_quality(
+                code=final_code,
+                original_prompt=str(original_prompt),
+                model=judge_model,
+                api_key=self.openai_api_key or self.anthropic_api_key or self.gemini_api_key or "",
+                base_url=self.openai_base_url
+            )
+            await self.send_message(
+                "qualityScore", 
+                None, 
+                0, 
+                {"score": quality_result.score, "feedback": quality_result.feedback}, 
+                None
+            )
+            print(f"[CONSENSUS] Final Code Quality Score: {quality_result.score}/100")
+            if quality_result.score < 75:
+                await self.send_message("status", f"Warning: Quality score {quality_result.score}/100 is below threshold (75).", 0, None, None)
+        except Exception as e:
+            print(f"[CONSENSUS] Quality scoring failed: {e}")
+
         await self.send_message("variantComplete", "Consensus synthesis complete", 0, None, None)
         return {0: final_code}
 

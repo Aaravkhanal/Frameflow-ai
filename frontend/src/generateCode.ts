@@ -68,6 +68,8 @@ interface CodeGenerationCallbacks {
   onDebateRound?: (data: any, variantIndex: number) => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onPipelineStage?: (data: any, variantIndex: number) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  onQualityScore?: (data: any, variantIndex: number) => void;
   onCancel: (
     reason: "user_cancelled" | "request_failed" | "connection_error",
     errorMessage?: string
@@ -111,6 +113,8 @@ export function generateCode(
 
     if (response.type === "chunk") {
       callbacks.onChange(response.value || "", response.variantIndex);
+    } else if (response.type === "qualityScore") {
+      callbacks.onQualityScore?.(response.data, response.variantIndex);
     } else if (response.type === "status") {
       callbacks.onStatusUpdate(response.value || "", response.variantIndex);
     } else if (response.type === "setCode") {

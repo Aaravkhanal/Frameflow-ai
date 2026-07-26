@@ -22,6 +22,7 @@ from routes import (
     prompt_reports,
     figma,
     orchestration,
+    visual_diff,
 )
 from uploaded_assets import configure_uploaded_asset_routes
 
@@ -113,6 +114,7 @@ app.include_router(home.router)
 app.include_router(export.router)
 app.include_router(design_systems.router)
 app.include_router(figma.router)
+app.include_router(visual_diff.router)
 
 
 # ---------------------------------------------------------------------------

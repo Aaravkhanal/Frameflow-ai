@@ -439,6 +439,14 @@ function App() {
       },
       onStatusUpdate: (line, variantIndex) =>
         appendExecutionConsole(variantIndex, line),
+      onQualityScore: (data, variantIndex) => {
+        appendExecutionConsole(variantIndex, `[EVAL] Quality Score: ${data.score}/100 - ${data.feedback}`);
+        if (data.score >= 75) {
+          toast.success(`Variant ${variantIndex + 1} passed quality check: ${data.score}/100`);
+        } else {
+          toast.error(`Variant ${variantIndex + 1} quality warning: ${data.score}/100`);
+        }
+      },
       onVariantComplete: (variantIndex) => {
         console.log(`Variant ${variantIndex} complete event received`);
         updateVariantStatus(commit.hash, variantIndex, "complete");
