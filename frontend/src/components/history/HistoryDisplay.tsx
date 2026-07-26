@@ -22,6 +22,7 @@ function MediaThumbnail({
           src={firstImage}
           alt="Input screenshot"
           className="w-full h-full object-cover"
+          loading="lazy"
           draggable={false}
         />
       ) : firstVideo ? (
@@ -84,6 +85,7 @@ function ExpandedMedia({
             src={img}
             alt={`Input ${i + 1}`}
             className="w-full h-auto object-contain max-h-48"
+            loading="lazy"
             draggable={false}
           />
         </div>

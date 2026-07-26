@@ -111,6 +111,30 @@ def normalize_url(url: str) -> str:
     return url
 
 
+async def check_robots_txt(target_url: str, user_agent: str = "*") -> bool:
+    """
+    Check robots.txt for the given URL to ensure scraping is allowed.
+    """
+    try:
+        parsed_url = urlparse(target_url)
+        robots_url = f"{parsed_url.scheme}://{parsed_url.netloc}/robots.txt"
+        
+        # We need an async HTTP client to fetch robots.txt without blocking
+        async with httpx.AsyncClient(timeout=10, follow_redirects=True) as client:
+            resp = await client.get(robots_url)
+            if resp.status_code == 200:
+                import urllib.robotparser
+                rp = urllib.robotparser.RobotFileParser()
+                rp.parse(resp.text.splitlines())
+                return rp.can_fetch(user_agent, target_url)
+            # If robots.txt doesn't exist (404) or fails, we typically assume allowed
+            return True
+    except Exception as exc:
+        logger.warning(f"Error checking robots.txt for {target_url}: {exc}")
+        # In case of network errors when fetching robots.txt, we assume allowed or fail open
+        return True
+
+
 def bytes_to_data_url(image_bytes: bytes, mime_type: str) -> str:
     base64_image = base64.b64encode(image_bytes).decode("utf-8")
     return f"data:{mime_type};base64,{base64_image}"
@@ -158,7 +182,9 @@ async def capture_screenshot(
         async with async_playwright() as p:
             browser = await p.chromium.launch(headless=True)
             
-            viewport = {"width": settings.SCREENSHOT_VIEWPORT_WIDTH_DESKTOP, "height": settings.SCREENSHOT_VIEWPORT_HEIGHT_DESKTOP} if device == "desktop" else {"width": settings.SCREENSHOT_VIEWPORT_WIDTH_MOBILE, "height": settings.SCREENSHOT_VIEWPORT_HEIGHT_MOBILE}
+            from typing import cast
+            from playwright.async_api import ViewportSize
+            viewport = cast(ViewportSize, {"width": settings.SCREENSHOT_VIEWPORT_WIDTH_DESKTOP, "height": settings.SCREENSHOT_VIEWPORT_HEIGHT_DESKTOP} if device == "desktop" else {"width": settings.SCREENSHOT_VIEWPORT_WIDTH_MOBILE, "height": settings.SCREENSHOT_VIEWPORT_HEIGHT_MOBILE})
             context = await browser.new_context(viewport=viewport)
             
             page = await context.new_page()
@@ -191,21 +217,35 @@ class ScreenshotRequest(BaseModel):
 
 class ScreenshotResponse(BaseModel):
     url: str
+    design_context: str | None = None
 
+
+from fastapi import Request
+from core.rate_limit import limiter
 
 @router.post("/api/screenshot")
-async def app_screenshot(request: ScreenshotRequest) -> ScreenshotResponse:
-    url = request.url
-    api_key = request.apiKey or os.environ.get("SCREENSHOTONE_API_KEY")
+@limiter.limit("5/minute")
+async def app_screenshot(request: Request, body: ScreenshotRequest) -> ScreenshotResponse:
+    url = body.url
+    api_key = body.apiKey or os.environ.get("SCREENSHOTONE_API_KEY")
 
     try:
+        from routes.url_extractor import extract_design_system_from_url
+        
         # Normalize the URL first
         normalized_url = normalize_url(url)
         is_safe_url(normalized_url)
 
+        is_allowed = await check_robots_txt(normalized_url)
+        if not is_allowed:
+            raise ValueError("robots.txt forbids scraping this URL")
+
         image_bytes = await capture_screenshot(normalized_url, api_key=api_key)
         data_url = bytes_to_data_url(image_bytes, "image/png")
-        return ScreenshotResponse(url=data_url)
+        
+        design_context = await extract_design_system_from_url(normalized_url)
+        
+        return ScreenshotResponse(url=data_url, design_context=design_context)
 
     except ValueError as exc:
         # URL normalization or SSRF check failed

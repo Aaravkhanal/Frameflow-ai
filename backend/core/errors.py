@@ -12,5 +12,17 @@ def format_llm_generation_error(e: Exception) -> str:
     
     if "authenticationerror" in err_str.lower() or "invalid api key" in err_str.lower():
         return "Authentication Error: Invalid API key. Please check your API keys in Settings."
-    
+        
+    if "timeout" in err_str.lower() or "timed out" in err_str.lower() or "deadline_exceeded" in err_str.lower():
+        return "Request Timed Out. The model took too long to respond. Please try again."
+
+    if "bad gateway" in err_str.lower() or "502" in err_str:
+        return "Bad Gateway (502). The LLM provider is currently experiencing issues. Please try again later."
+        
+    if "service unavailable" in err_str.lower() or "503" in err_str:
+        return "Service Unavailable (503). The LLM provider is currently overloaded. Please try again later."
+        
+    if "connection error" in err_str.lower() or "connection aborted" in err_str.lower():
+        return "Connection Error. Failed to connect to the AI provider. Check your network or try again."
+
     return f"Generation error: {err_str[:250]}"

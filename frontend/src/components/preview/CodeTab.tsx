@@ -1,5 +1,6 @@
 import { FaCopy } from "react-icons/fa";
-import CodeMirror from "./CodeMirror";
+import { Suspense, lazy } from "react";
+const CodeMirror = lazy(() => import("./CodeMirror"));
 import { Button } from "../ui/button";
 import { Settings } from "../../types";
 import copy from "copy-to-clipboard";
@@ -29,11 +30,9 @@ function CodeTab({ code, setCode, settings }: Props) {
         (code.includes("<ion-")
           ? ",https://cdn.jsdelivr.net/npm/@ionic/core/css/ionic.bundle.css"
           : ""),
-      js_external:
-        "https://cdn.tailwindcss.com " +
-        (code.includes("<ion-")
-          ? ",https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js,https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"
-          : ""),
+      js_external: code.includes("<ion-")
+        ? "https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.esm.js,https://cdn.jsdelivr.net/npm/@ionic/core/dist/ionic/ionic.js"
+        : "",
     };
 
     // Create a hidden form and submit it to open the code in CodePen
@@ -77,11 +76,13 @@ function CodeTab({ code, setCode, settings }: Props) {
           />
         </Button>
       </div>
-      <CodeMirror
-        code={code}
-        editorTheme={settings.editorTheme}
-        onCodeChange={setCode}
-      />
+      <Suspense fallback={<div className="flex h-full items-center justify-center text-slate-500">Loading editor...</div>}>
+        <CodeMirror
+          code={code}
+          editorTheme={settings.editorTheme}
+          onCodeChange={setCode}
+        />
+      </Suspense>
     </div>
   );
 }

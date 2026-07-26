@@ -1,3 +1,4 @@
+import html
 from typing import List, cast
 
 from prompts.prompt_types import PromptHistoryMessage, UserTurnInput
@@ -7,7 +8,14 @@ def _to_string_list(value: object) -> List[str]:
     if not isinstance(value, list):
         return []
     raw_list = cast(List[object], value)
-    return [item for item in raw_list if isinstance(item, str)]
+    return [html.escape(item) for item in raw_list if isinstance(item, str)]
+
+def _sanitize_text(text: object) -> str:
+    if not isinstance(text, str):
+        return ""
+    # Very basic sanitization, escaping HTML tags to prevent prompt injection
+    # where the LLM might interpret tags if rendered improperly.
+    return html.escape(text)
 
 
 def parse_prompt_content(raw_prompt: object) -> UserTurnInput:
@@ -15,16 +23,15 @@ def parse_prompt_content(raw_prompt: object) -> UserTurnInput:
         return {"text": "", "images": [], "videos": []}
 
     prompt_dict = cast(dict[str, object], raw_prompt)
-    text = prompt_dict.get("text")
     parsed: UserTurnInput = {
-        "text": text if isinstance(text, str) else "",
+        "text": _sanitize_text(prompt_dict.get("text")),
         "images": _to_string_list(prompt_dict.get("images")),
         "videos": _to_string_list(prompt_dict.get("videos")),
     }
 
     full_text = prompt_dict.get("fullText")
     if isinstance(full_text, str) and full_text.strip():
-        parsed["full_text"] = full_text
+        parsed["full_text"] = _sanitize_text(full_text)
 
     return parsed
 
@@ -44,11 +51,10 @@ def parse_prompt_history(raw_history: object) -> List[PromptHistoryMessage]:
         if not isinstance(role_value, str) or role_value not in ("user", "assistant"):
             continue
 
-        text = item_dict.get("text")
         history.append(
             {
                 "role": role_value,
-                "text": text if isinstance(text, str) else "",
+                "text": _sanitize_text(item_dict.get("text")),
                 "images": _to_string_list(item_dict.get("images")),
                 "videos": _to_string_list(item_dict.get("videos")),
             }

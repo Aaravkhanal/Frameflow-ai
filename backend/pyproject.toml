@@ -27,6 +27,8 @@ langfuse = "^3.0.2"
 playwright = "^1.61.0"
 pillow-heif = "^0.18.0"
 pydantic-settings = "^2.14.2"
+tenacity = "^9.1.4"
+slowapi = "^0.1.10"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"

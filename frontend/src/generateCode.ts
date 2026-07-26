@@ -78,19 +78,26 @@ interface CodeGenerationCallbacks {
 export function generateCode(
   wsRef: React.MutableRefObject<WebSocket | null>,
   params: FullGenerationSettings,
-  callbacks: CodeGenerationCallbacks
+  callbacks: CodeGenerationCallbacks,
+  retryCount: number = 0
 ) {
+  const MAX_RETRIES = 3;
   const wsUrl = `${WS_BACKEND_URL}/generate-code`;
-  console.log("Connecting to backend @ ", wsUrl);
+  console.log(`Connecting to backend @ ${wsUrl} (Attempt ${retryCount + 1})`);
 
   const ws = new WebSocket(wsUrl);
   wsRef.current = ws;
+
+  let hasReceivedData = false;
 
   ws.addEventListener("open", () => {
     ws.send(JSON.stringify(params));
   });
 
+  let errorToastShown = false;
+
   ws.addEventListener("message", async (event: MessageEvent) => {
+    hasReceivedData = true;
     // Guard against malformed JSON — a parse failure here would silently crash
     // the entire message handler and leave the UI in a broken state.
     let response: WebSocketResponse;
@@ -142,8 +149,6 @@ export function generateCode(
     }
   });
 
-  let errorToastShown = false;
-
   ws.addEventListener("close", (event) => {
     console.log("Connection closed", event.code, event.reason);
     if (event.code === USER_CLOSE_WEB_SOCKET_CODE) {
@@ -158,6 +163,19 @@ export function generateCode(
       callbacks.onCancel("request_failed", event.reason || ERROR_MESSAGE);
     } else if (event.code !== 1000) {
       console.error("Unknown server or connection error", event);
+      
+      // Automatic Reconnection Logic for abnormal closure
+      if (!hasReceivedData && retryCount < MAX_RETRIES) {
+        const timeout = Math.pow(2, retryCount) * 1000;
+        console.log(`Reconnecting in ${timeout}ms...`);
+        toast.loading(`Connection lost. Reconnecting... (Attempt ${retryCount + 1})`, { id: "reconnect-toast" });
+        setTimeout(() => {
+          toast.dismiss("reconnect-toast");
+          generateCode(wsRef, params, callbacks, retryCount + 1);
+        }, timeout);
+        return;
+      }
+
       if (!errorToastShown) {
         toast.error(ERROR_MESSAGE);
         errorToastShown = true;
@@ -170,10 +188,7 @@ export function generateCode(
 
   ws.addEventListener("error", (error) => {
     console.error("WebSocket error", error);
-    if (!errorToastShown) {
-      toast.error(ERROR_MESSAGE);
-      errorToastShown = true;
-    }
+    // Let the close handler manage the retries/errors
   });
 }
 

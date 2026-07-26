@@ -343,6 +343,7 @@ class PromptCreationStage:
     ) -> List[ChatCompletionMessageParam]:
         """Create prompt messages"""
         try:
+            from prompts.pipeline import build_prompt_messages
             prompt_messages = await build_prompt_messages(
                 stack=extracted_params.stack,
                 input_mode=extracted_params.input_mode,
@@ -737,9 +738,20 @@ class PostProcessingMiddleware(Middleware):
         await next_func()
 
 
+from core.rate_limit import limiter
+
 @router.websocket("/generate-code")
 async def stream_code(websocket: WebSocket):
     """Handle WebSocket code generation requests using a pipeline pattern"""
+    # Manual rate limiting check since slowapi decorators don't fully support websockets
+    try:
+        limiter.limit("10/minute")(lambda request: None)(websocket)
+    except Exception as e:
+        await websocket.accept()
+        await websocket.send_json({"type": "error", "value": "Rate limit exceeded. Please try again later."})
+        await websocket.close()
+        return
+
     pipeline = Pipeline()
 
     # Configure the pipeline

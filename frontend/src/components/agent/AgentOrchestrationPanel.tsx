@@ -158,6 +158,34 @@ export const AgentOrchestrationPanel: React.FC<AgentOrchestrationPanelProps> = (
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Optimistic Debate UI */}
+      <AnimatePresence>
+        {mappedCurrentStage === "debate" && isActive && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="flex flex-col gap-3 rounded-2xl bg-slate-900/40 p-4 border border-indigo-500/30 overflow-hidden"
+          >
+            <div className="flex items-center gap-2 text-indigo-400">
+              <Loader2 size={16} className="animate-spin" />
+              <span className="text-sm font-semibold">Cross-Agent Debate in Progress</span>
+            </div>
+            <div className="flex gap-2 opacity-50">
+              <div className="h-2 flex-1 bg-indigo-500/20 rounded animate-pulse" />
+              <div className="h-2 w-1/3 bg-indigo-500/20 rounded animate-pulse" delay-100 />
+            </div>
+            <div className="flex gap-2 opacity-50">
+              <div className="h-2 w-2/3 bg-indigo-500/20 rounded animate-pulse" delay-200 />
+              <div className="h-2 flex-1 bg-indigo-500/20 rounded animate-pulse" delay-300 />
+            </div>
+            <span className="text-[10px] text-slate-500 uppercase tracking-widest text-center mt-2">
+              Waiting for consensus...
+            </span>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

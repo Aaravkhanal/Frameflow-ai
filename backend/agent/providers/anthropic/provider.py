@@ -346,10 +346,15 @@ class AnthropicProviderSession(ProviderSession):
         stream_kwargs: Dict[str, Any] = {
             "model": _get_anthropic_api_model_name(self._model),
             "max_tokens": 50000,
-            "system": self._system_prompt,
+            "system": [
+                {
+                    "type": "text",
+                    "text": self._system_prompt,
+                    "cache_control": {"type": "ephemeral"},
+                }
+            ],
             "messages": self._messages,
             "tools": self._tools,
-            "cache_control": {"type": "ephemeral"},
         }
 
         if self._model.value in ADAPTIVE_THINKING_MODELS:

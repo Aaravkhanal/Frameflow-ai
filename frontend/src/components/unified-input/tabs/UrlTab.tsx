@@ -106,10 +106,15 @@ function UrlTab({
       }
 
       const res = await response.json();
+      let extendedPrompt = textPrompt;
+      if (res.design_context) {
+        extendedPrompt += `\n\n${res.design_context}`;
+      }
+      
       doCreate(
         [res.url],
         "image",
-        textPrompt,
+        extendedPrompt,
         isAssetExtractionEnabled,
       );
     } catch (error) {
