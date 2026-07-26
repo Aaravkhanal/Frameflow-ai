@@ -58,10 +58,15 @@ interface CodeGenerationCallbacks {
     variantIndex: number,
     eventId?: string
   ) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onAgentStart?: (data: any, variantIndex: number) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onAgentComplete?: (data: any, variantIndex: number) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onAgentCritique?: (data: any, variantIndex: number) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onDebateRound?: (data: any, variantIndex: number) => void;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onPipelineStage?: (data: any, variantIndex: number) => void;
   onCancel: (
     reason: "user_cancelled" | "request_failed" | "connection_error",

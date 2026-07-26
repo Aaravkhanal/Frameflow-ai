@@ -98,6 +98,7 @@ export interface AgentCritique {
   approved: boolean;
   summary: string;
   issueCount: number;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   issues?: any[];
   suggestions?: string[];
   strengths?: string[];

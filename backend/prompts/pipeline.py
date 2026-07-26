@@ -27,6 +27,11 @@ async def build_prompt_messages(
         file_state=file_state,
     )
 
+    if input_mode == "text":
+        prompt["images"] = []
+        for msg in history:
+            msg["images"] = []
+
     strategy = plan["construction_strategy"]
     if strategy == "update_from_history":
         return build_update_prompt_from_history(

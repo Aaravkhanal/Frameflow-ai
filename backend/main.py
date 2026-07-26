@@ -47,6 +47,18 @@ async def lifespan(app: FastAPI):
 app = FastAPI(openapi_url=None, docs_url=None, redoc_url=None, lifespan=lifespan)
 configure_uploaded_asset_routes(app)
 
+import traceback
+from fastapi import Request
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error(f"Unhandled exception on {request.url}: {exc}")
+    logger.error(traceback.format_exc())
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "An unexpected server error occurred. Please try again or contact support if the issue persists."},
+    )
+
 # ---------------------------------------------------------------------------
 # CORS
 # ---------------------------------------------------------------------------
