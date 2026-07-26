@@ -41,9 +41,10 @@ def serialize_gemini_tools(tools: List[CanonicalToolDefinition]) -> List[types.T
 
 
 def _get_gemini_api_model_name(model: Llm) -> str:
-    if "/" in model.value:
-        return model.value.split("/")[-1]
-    return model.value
+    val = model.value.split(" (")[0]
+    if "/" in val:
+        return val.split("/")[-1]
+    return val
 
 
 def _get_thinking_level_for_model(model: Llm) -> str:

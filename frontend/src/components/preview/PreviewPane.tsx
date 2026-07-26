@@ -20,6 +20,9 @@ import { AccessibilityAuditModal } from "./AccessibilityAuditModal";
 import { ExportProjectModal } from "./ExportProjectModal";
 import { ElementInspectorOverlay } from "./ElementInspectorOverlay";
 import toast from "react-hot-toast";
+import { DesignDecodeDashboard } from "./DesignDecodeDashboard";
+import { decodeDesign } from "../../lib/designDecode";
+import { LuWand2 } from "react-icons/lu";
 
 function prepareHtmlForNewTab(code: string) {
   const html = normalizeBabelCdn(code);
@@ -43,12 +46,13 @@ interface Props {
 
 function PreviewPane({ settings, onOpenVersions }: Props) {
   const { appState } = useAppStore();
-  const { inputMode, head, commits, setHead } = useProjectStore();
+  const { inputMode, head, commits, setHead, setDecodeAnalysis } = useProjectStore();
   const [activeTab, setActiveTab] = useState("desktop");
   const [desktopViewMode, setDesktopViewMode] = useState<"fit" | "actual">("fit");
   const [isA11yModalOpen, setIsA11yModalOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isInspectorActive, setIsInspectorActive] = useState(false);
+  const [isDecoding, setIsDecoding] = useState(false);
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
   // Sorted commit list for version navigation
@@ -83,6 +87,31 @@ function PreviewPane({ settings, onOpenVersions }: Props) {
   const a11yResult = useMemo(() => {
     return auditAccessibility(previewCode);
   }, [previewCode]);
+
+  const currentVariantIndex = currentCommit ? currentCommit.selectedVariantIndex : 0;
+  const decodeAnalysis = currentCommit?.variants[currentVariantIndex]?.decodeAnalysis;
+
+  const handleDecode = async () => {
+    if (!head || !currentCode) return;
+    setIsDecoding(true);
+    try {
+      const result = await decodeDesign(currentCode, undefined, settings.openAiApiKey);
+      setDecodeAnalysis(head, currentVariantIndex, result);
+      toast.success("Design successfully decoded!");
+    } catch (e: any) {
+      toast.error(e.message || "Failed to decode design");
+    } finally {
+      setIsDecoding(false);
+    }
+  };
+
+  const handleHoverComponent = (selector: string | null) => {
+    if (!iframeRef.current?.contentWindow) return;
+    iframeRef.current.contentWindow.postMessage(
+      { type: "HIGHLIGHT_COMPONENT", selector },
+      "*"
+    );
+  };
 
   return (
     <div className="flex-1 flex flex-col min-h-0 relative">
@@ -120,6 +149,14 @@ function PreviewPane({ settings, onOpenVersions }: Props) {
                 >
                   <FaCode className="mr-1.5" /> Code
                 </TabsTrigger>
+                {canSelectAndEdit && (
+                  <TabsTrigger
+                    value="decode"
+                    className="rounded-md px-3 py-1.5 text-xs font-medium transition-all data-[state=active]:bg-indigo-500/20 data-[state=active]:text-indigo-300 data-[state=active]:shadow-sm data-[state=active]:border-indigo-500/40"
+                  >
+                    <LuWand2 className="mr-1.5" /> Decode
+                  </TabsTrigger>
+                )}
               </TabsList>
             </div>
 
@@ -323,6 +360,29 @@ function PreviewPane({ settings, onOpenVersions }: Props) {
             setCode={() => {}}
             settings={settings}
           />
+        </TabsContent>
+
+        <TabsContent value="decode" className="flex-1 min-h-0 mt-0 overflow-hidden flex flex-col relative">
+          {decodeAnalysis ? (
+            <div className="flex-1 overflow-hidden">
+              <DesignDecodeDashboard data={decodeAnalysis} onHoverComponent={handleHoverComponent} />
+            </div>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center bg-slate-950 p-10 text-center text-slate-400">
+              <LuWand2 className="w-12 h-12 text-indigo-500/50 mb-4" />
+              <h3 className="text-xl font-medium text-slate-300 mb-2">Ready to Decode Design</h3>
+              <p className="max-w-md text-sm mb-6">
+                Uncover the exact color palette, typography choices, layout strategy, and hidden UI logic that makes up this design.
+              </p>
+              <Button 
+                onClick={handleDecode} 
+                disabled={isDecoding || !currentCode}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white"
+              >
+                {isDecoding ? "Analyzing UI Architecture..." : "Run AI Design Decode"}
+              </Button>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
 

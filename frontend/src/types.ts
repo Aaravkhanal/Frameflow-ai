@@ -133,3 +133,41 @@ export interface OrchestrationEventData {
   content?: string;
   agentType?: string;
 }
+
+export interface DesignDecodeResult {
+  visual_design: {
+    primary: string[];
+    secondary: string[];
+    background: string[];
+    text: string[];
+    theme: string;
+  };
+  typography: {
+    font_families: string[];
+    heading_sizes: string[];
+    paragraph_sizes: string[];
+    hierarchy_explanation: string;
+  };
+  layout: {
+    grid_system: string;
+    spacing_scale: string;
+    responsive_behavior: string;
+    explanation: string;
+  };
+  components: Array<{
+    name: string;
+    css_selector: string;
+    purpose: string;
+    styling: string;
+  }>;
+  design_system: {
+    frameworks: string[];
+    icon_library?: string;
+  };
+  ux_analysis: {
+    accessibility: string;
+    interactions: string;
+    overall_experience: string;
+  };
+  ai_explanation: string;
+}

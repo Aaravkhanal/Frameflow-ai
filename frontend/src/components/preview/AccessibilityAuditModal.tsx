@@ -12,6 +12,7 @@ export const AccessibilityAuditModal: React.FC<AccessibilityAuditModalProps> = (
   isOpen,
   onClose,
   auditResult,
+  onApplyFixes,
 }) => {
   if (!isOpen) return null;
 

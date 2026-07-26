@@ -29,7 +29,8 @@ type WebSocketResponse = {
     | "agentComplete"
     | "agentCritique"
     | "debateRound"
-    | "pipelineStage";
+    | "pipelineStage"
+    | "qualityScore";
   value?: string;
   // Typed as a plain object instead of `any` to avoid accidental type-unsafety.
   // Consumers must narrow to their expected shape.

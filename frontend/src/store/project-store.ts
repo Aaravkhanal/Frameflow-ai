@@ -55,6 +55,11 @@ interface ProjectStore {
   ) => void;
   resizeVariants: (hash: CommitHash, count: number) => void;
   setVariantModels: (hash: CommitHash, models: string[]) => void;
+  setDecodeAnalysis: (
+    hash: CommitHash,
+    numVariant: number,
+    analysis: import("../types").DesignDecodeResult
+  ) => void;
 
   startAgentEvent: (
     hash: CommitHash,
@@ -353,6 +358,25 @@ export const useProjectStore = create<ProjectStore>((set) => ({
         ...variant,
         model: models[index] ?? variant.model,
       }));
+      return {
+        commits: {
+          ...state.commits,
+          [hash]: { ...commit, variants },
+        },
+      };
+    }),
+
+  setDecodeAnalysis: (hash: CommitHash, numVariant: number, analysis: import("../types").DesignDecodeResult) =>
+    set((state) => {
+      const commit = state.commits[hash];
+      if (!commit || commit.isCommitted) return state;
+      const variants = [...commit.variants];
+      if (variants[numVariant]) {
+        variants[numVariant] = {
+          ...variants[numVariant],
+          decodeAnalysis: analysis,
+        };
+      }
       return {
         commits: {
           ...state.commits,

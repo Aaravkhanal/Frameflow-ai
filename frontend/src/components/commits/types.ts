@@ -38,6 +38,7 @@ export type Variant = {
   thinkingDuration?: number;
   agentEvents?: AgentEvent[];
   model?: string;
+  decodeAnalysis?: import("../../types").DesignDecodeResult;
 };
 
 export type BaseCommit = {

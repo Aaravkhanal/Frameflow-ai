@@ -211,6 +211,40 @@ function PreviewComponent({
 
     const suppressedEvents = ["pointerdown", "mousedown", "mouseup", "submit"];
 
+    const handleMessage = (event: MessageEvent) => {
+      if (event.data?.type === "HIGHLIGHT_COMPONENT") {
+        const doc = iframeRef.current?.contentDocument;
+        if (!doc) return;
+        
+        // Remove existing highlights
+        doc.querySelectorAll(".frameflow-decode-highlight").forEach(el => {
+          el.classList.remove("frameflow-decode-highlight");
+          (el as HTMLElement).style.outline = "";
+          (el as HTMLElement).style.outlineOffset = "";
+          (el as HTMLElement).style.boxShadow = "";
+          (el as HTMLElement).style.transition = "";
+        });
+
+        const selector = event.data.selector;
+        if (selector) {
+          try {
+            const elements = doc.querySelectorAll(selector);
+            elements.forEach(el => {
+              el.classList.add("frameflow-decode-highlight");
+              (el as HTMLElement).style.outline = "2px solid #6366f1"; // Indigo-500
+              (el as HTMLElement).style.outlineOffset = "2px";
+              (el as HTMLElement).style.boxShadow = "0 0 15px rgba(99, 102, 241, 0.4)";
+              (el as HTMLElement).style.transition = "all 0.2s ease";
+            });
+          } catch (e) {
+            console.warn("Invalid CSS selector from Decode API:", selector);
+          }
+        }
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+
     const handleLoad = () => {
       const win = iframe.contentWindow;
       if (!win) return;
@@ -243,6 +277,7 @@ function PreviewComponent({
     }
 
     return () => {
+      window.removeEventListener("message", handleMessage);
       iframe.removeEventListener("load", handleLoad);
       const win = iframe.contentWindow;
       if (win) {

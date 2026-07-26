@@ -224,7 +224,7 @@ from fastapi import Request
 from core.rate_limit import limiter
 
 @router.post("/api/screenshot")
-@limiter.limit("5/minute")
+@limiter.limit("30/minute")
 async def app_screenshot(request: Request, body: ScreenshotRequest) -> ScreenshotResponse:
     url = body.url
     api_key = body.apiKey or os.environ.get("SCREENSHOTONE_API_KEY")

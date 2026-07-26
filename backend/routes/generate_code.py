@@ -591,7 +591,7 @@ class StatusBroadcastMiddleware(Middleware):
         num_variants = (
             NUM_VARIANTS_VIDEO if is_video_mode else 2 if is_update else NUM_VARIANTS
         )
-        if CONSENSUS_ENABLED:
+        if CONSENSUS_ENABLED or ORCHESTRATION_ENABLED:
             num_variants = 1
 
         # Tell frontend how many variants we're using
@@ -743,15 +743,8 @@ from core.rate_limit import limiter
 @router.websocket("/generate-code")
 async def stream_code(websocket: WebSocket):
     """Handle WebSocket code generation requests using a pipeline pattern"""
-    # Manual rate limiting check since slowapi decorators don't fully support websockets
-    try:
-        limiter.limit("10/minute")(lambda request: None)(websocket)
-    except Exception as e:
-        await websocket.accept()
-        await websocket.send_json({"type": "error", "value": "Rate limit exceeded. Please try again later."})
-        await websocket.close()
-        return
-
+    # Removed manual rate limit check here because slowapi isn't fully compatible with bare WebSockets 
+    # and was causing unintended connection closures.
     pipeline = Pipeline()
 
     # Configure the pipeline
