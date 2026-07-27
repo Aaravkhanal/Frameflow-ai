@@ -374,8 +374,48 @@ class PostProcessingStage:
         self,
         completions: List[str],
         websocket: WebSocket,
+        context: PipelineContext,
     ) -> None:
         """Process completions and perform cleanup."""
+        # Save to database if we have a valid completion and a user
+        if not completions or not completions[0]:
+            return
+            
+        user = context.metadata.get("user")
+        if not user:
+            return
+            
+        from core.security import supabase
+        if not supabase:
+            return
+            
+        try:
+            # 1. Check if they provided a projectId, otherwise create a new project
+            project_id = context.params.get("projectId")
+            if not project_id:
+                # Create a new project
+                prompt_text = context.extracted_params.prompt.get("text", "New Project")[:50]
+                title = prompt_text if prompt_text.strip() else "Untitled Project"
+                
+                proj_res = supabase.table("projects").insert({
+                    "user_id": user.id,
+                    "title": title
+                }).execute()
+                
+                if proj_res.data and len(proj_res.data) > 0:
+                    project_id = proj_res.data[0]["id"]
+            
+            # 2. Insert the generation
+            if project_id:
+                supabase.table("generations").insert({
+                    "project_id": project_id,
+                    "prompt": context.extracted_params.prompt.get("text", ""),
+                    "code": completions[0]
+                }).execute()
+                print(f"Successfully saved generation to project {project_id}")
+        except Exception as e:
+            print(f"Error saving generation to database: {e}")
+            
         return None
 
 
@@ -560,6 +600,20 @@ class ParameterExtractionMiddleware(Middleware):
         assert context.ws_comm is not None
         context.params = await context.ws_comm.receive_params()
 
+        # Validate JWT token
+        token = context.params.get("token")
+        if not token:
+            await context.throw_error("Unauthorized: Please sign in to generate code.")
+            raise ValueError("No authentication token provided")
+            
+        from core.security import get_current_user_from_token
+        user = get_current_user_from_token(token)
+        if not user:
+            await context.throw_error("Unauthorized: Invalid or expired session. Please sign in again.")
+            raise ValueError("Invalid authentication token")
+            
+        context.metadata["user"] = user
+
         # Extract and validate
         param_extractor = ParameterExtractionStage(
             context.throw_error,
@@ -571,7 +625,7 @@ class ParameterExtractionMiddleware(Middleware):
 
         # Log what we're generating
         print(
-            f"Generating {context.extracted_params.stack} code in {context.extracted_params.input_mode} mode"
+            f"Generating {context.extracted_params.stack} code in {context.extracted_params.input_mode} mode for user {user.id}"
         )
 
         await next_func()
@@ -732,7 +786,7 @@ class PostProcessingMiddleware(Middleware):
     ) -> None:
         post_processor = PostProcessingStage()
         await post_processor.process_completions(
-            context.completions, context.websocket
+            context.completions, context.websocket, context
         )
 
         await next_func()

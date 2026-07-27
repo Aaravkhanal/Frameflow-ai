@@ -11,7 +11,7 @@ import { Input } from "./ui/input";
 import toast from "react-hot-toast";
 import { PICO_BACKEND_FORM_SECRET } from "../config";
 
-const LOGOS = ["microsoft", "amazon", "mit", "stanford", "bytedance", "baidu"];
+
 
 const TermsOfServiceDialog: React.FC<{
   open: boolean;

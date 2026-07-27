@@ -76,7 +76,8 @@ Powered by a **Multi-Model AI Pipeline & Consensus Engine** (OpenAI, Anthropic C
 | 🧩 **Multi-Framework Output** | Generate React, Vue, HTML + Tailwind, HTML + CSS, Bootstrap, and Ionic |
 | 🤖 **Multi-Model AI Consensus** | Combines OpenAI, Anthropic Claude, and Google Gemini simultaneously for high accuracy |
 | 🖌️ **AI Asset Extraction** | Automatically isolates images, icons, and logos from screenshots |
-| 🔐 **Built-in JWT Auth** | User registration, login, logout, bcrypt password hashing, and session management |
+| 🔐 **Supabase Authentication** | Fast, secure Email & Password login, JWT verification, and protected API routes |
+| 🗄️ **PostgreSQL Integration** | Automatically saves UI generations to Supabase with Row-Level Security (RLS) |
 | ⚡ **Live Preview & ZIP Export** | Preview components live in desktop/mobile viewports and export as a multi-file ZIP |
 
 ---
@@ -105,7 +106,7 @@ Powered by a **Multi-Model AI Pipeline & Consensus Engine** (OpenAI, Anthropic C
 ## 💻 Tech Stack
 
 - **Frontend**: React · TypeScript · Vite · Tailwind CSS · Zustand · CodeMirror
-- **Backend**: FastAPI · Python 3.10+ · SQLite · Async WebSockets · Playwright
+- **Backend**: FastAPI · Python 3.10+ · Supabase (PostgreSQL) · Async WebSockets · Playwright
 - **AI Providers**: OpenAI · Anthropic Claude · Google Gemini · Replicate
 
 ---
@@ -116,11 +117,11 @@ Powered by a **Multi-Model AI Pipeline & Consensus Engine** (OpenAI, Anthropic C
 frameflow-ai/
 │
 ├── backend/
-│   ├── auth/            # JWT authentication, hashing & database models
+│   ├── core/            # Security, rate limiting & pipeline components
 │   ├── routes/          # FastAPI REST endpoints & WebSocket streams
 │   ├── consensus/       # Multi-model AI consensus engine
 │   ├── agent/           # Code generation agent & LLM runners
-│   ├── tests/           # Pytest test suite (228 tests)
+│   ├── tests/           # Pytest test suite
 │   ├── config.py        # Environment configuration
 │   └── main.py          # App entrypoint
 │

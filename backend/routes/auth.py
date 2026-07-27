@@ -1,19 +1,9 @@
 import os
-from supabase import create_client, Client
 from fastapi import APIRouter, HTTPException, Depends
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import HTTPBearer
 from pydantic import BaseModel
-from dotenv import load_dotenv
 
-load_dotenv()
-
-url: str = os.environ.get("SUPABASE_URL", "")
-key: str = os.environ.get("SUPABASE_KEY", "")
-
-# We initialize supabase client if credentials exist, else we set it to None to handle gracefully
-supabase: Client | None = None
-if url and key:
-    supabase = create_client(url, key)
+from core.security import supabase
 
 router = APIRouter()
 security = HTTPBearer()
@@ -107,7 +97,7 @@ class SendOtpRequest(BaseModel):
     email: str
 
 @router.post("/send-otp")
-async def send_otp(request: SendOtpRequest):
+def send_otp(request: SendOtpRequest):
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase credentials not configured.")
     try:
@@ -126,7 +116,7 @@ class VerifyOtpRequest(BaseModel):
     token: str
 
 @router.post("/verify-otp")
-async def verify_otp(request: VerifyOtpRequest):
+def verify_otp(request: VerifyOtpRequest):
     if not supabase:
         raise HTTPException(status_code=500, detail="Supabase credentials not configured.")
     try:

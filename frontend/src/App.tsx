@@ -358,10 +358,12 @@ function App() {
     );
 
     // Merge settings with params
+    const { token } = useAuthStore.getState();
     const updatedParams = {
       ...settings,
       ...requestParams,
       designSystem: selectedDesignSystem?.content ?? null,
+      token,
     };
 
     // Use 4 variants for create, 2 for edits to match backend counts

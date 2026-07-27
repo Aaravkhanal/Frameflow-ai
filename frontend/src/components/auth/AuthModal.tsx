@@ -3,79 +3,50 @@ import {
   Cross2Icon,
   EnvelopeClosedIcon,
   LockClosedIcon,
+  PersonIcon,
 } from "@radix-ui/react-icons";
 import { useAuthStore } from "../../store/authStore";
 import toast from "react-hot-toast";
 import { FrameFlowLogo } from "../ui/FrameFlowLogo";
 
 export function AuthModal() {
-  const { isAuthModalOpen, setAuthModalOpen, sendOtp, verifyOtp } = useAuthStore();
+  const { isAuthModalOpen, setAuthModalOpen, authModalTab, login, register } = useAuthStore();
   
-  const [step, setStep] = useState<"email" | "otp">("email");
+  const [step, setStep] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
-  const [otp, setOtp] = useState("");
+  const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
   const [loading, setLoading] = useState(false);
-  const [countdown, setCountdown] = useState(0);
 
   useEffect(() => {
-    if (!isAuthModalOpen) {
-      setStep("email");
-      setOtp("");
-      setCountdown(0);
+    if (isAuthModalOpen) {
+      setStep(authModalTab === "signup" ? "signup" : "login");
+      setEmail("");
+      setPassword("");
+      setName("");
     }
-  }, [isAuthModalOpen]);
-
-  useEffect(() => {
-    let timer: number;
-    if (countdown > 0) {
-      timer = window.setInterval(() => setCountdown((c) => c - 1), 1000);
-    }
-    return () => window.clearInterval(timer);
-  }, [countdown]);
+  }, [isAuthModalOpen, authModalTab]);
 
   if (!isAuthModalOpen) return null;
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
-    setLoading(true);
-    const res = await sendOtp(email);
-    setLoading(false);
+    if (!email || !password || (step === "signup" && !name)) return;
     
-    if (!res.ok) {
-      toast.error(res.error || "Failed to send code");
-    } else {
-      toast.success("Verification code sent!");
-      setStep("otp");
-      setCountdown(60);
-    }
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!otp) return;
     setLoading(true);
-    const res = await verifyOtp(email, otp);
+    let res;
+    if (step === "login") {
+      res = await login(email, password);
+    } else {
+      res = await register(email, name, password);
+    }
     setLoading(false);
 
     if (!res.ok) {
-      toast.error(res.error || "Invalid verification code");
+      toast.error(res.error || "Authentication failed");
     } else {
-      toast.success("Successfully logged in!");
+      toast.success(step === "login" ? "Successfully logged in!" : "Account created!");
       setAuthModalOpen(false);
-    }
-  };
-
-  const handleResend = async () => {
-    if (countdown > 0) return;
-    setLoading(true);
-    const res = await sendOtp(email);
-    setLoading(false);
-    if (!res.ok) {
-      toast.error(res.error || "Failed to resend code");
-    } else {
-      toast.success("Verification code resent!");
-      setCountdown(60);
     }
   };
 
@@ -100,75 +71,91 @@ export function AuthModal() {
             FrameFlow AI
           </h2>
           <p className="text-xs text-zinc-400 mt-1">
-            {step === "email"
-              ? "Sign in or create an account to continue."
-              : `We sent a code to ${email}`}
+            {step === "login" ? "Sign in to continue." : "Create an account to continue."}
           </p>
         </div>
 
-        {step === "email" ? (
-          <form onSubmit={handleSendOtp} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {step === "signup" && (
             <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1.5">Email Address</label>
+              <label className="block text-xs font-medium text-zinc-300 mb-1.5">Full Name</label>
               <div className="relative">
-                <EnvelopeClosedIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-zinc-400" />
+                <PersonIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-zinc-400" />
                 <input
-                  type="email"
+                  type="text"
                   required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="John Doe"
                   className="w-full pl-10 pr-4 py-2.5 bg-zinc-800/50 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
                 />
               </div>
             </div>
+          )}
 
-            <button
-              type="submit"
-              disabled={loading || !email}
-              className="w-full py-3 mt-2 font-semibold text-sm rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50"
-            >
-              {loading ? "Sending..." : "Continue with Email"}
-            </button>
-          </form>
-        ) : (
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <div>
-              <label className="block text-xs font-medium text-zinc-300 mb-1.5">Verification Code</label>
-              <div className="relative">
-                <LockClosedIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-zinc-400" />
-                <input
-                  type="text"
-                  required
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.toUpperCase())}
-                  placeholder="123456"
-                  className="w-full pl-10 pr-4 py-2.5 bg-zinc-800/50 border border-white/10 rounded-xl text-center tracking-widest text-lg font-mono text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
-                />
-              </div>
+          <div>
+            <label className="block text-xs font-medium text-zinc-300 mb-1.5">Email Address</label>
+            <div className="relative">
+              <EnvelopeClosedIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-zinc-400" />
+              <input
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@example.com"
+                className="w-full pl-10 pr-4 py-2.5 bg-zinc-800/50 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
+              />
             </div>
+          </div>
 
-            <button
-              type="submit"
-              disabled={loading || otp.length < 6}
-              className="w-full py-3 mt-2 font-semibold text-sm rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50"
-            >
-              {loading ? "Verifying..." : "Verify & Sign In"}
-            </button>
+          <div>
+            <label className="block text-xs font-medium text-zinc-300 mb-1.5">Password</label>
+            <div className="relative">
+              <LockClosedIcon className="absolute left-3.5 top-3.5 w-4 h-4 text-zinc-400" />
+              <input
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="w-full pl-10 pr-4 py-2.5 bg-zinc-800/50 border border-white/10 rounded-xl text-sm text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-500 transition-all"
+              />
+            </div>
+          </div>
 
-            <div className="text-center mt-4">
+          <button
+            type="submit"
+            disabled={loading || !email || !password || (step === "signup" && !name)}
+            className="w-full py-3 mt-2 font-semibold text-sm rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-white shadow-lg shadow-cyan-500/25 hover:shadow-cyan-500/40 hover:scale-[1.01] active:scale-[0.99] transition-all disabled:opacity-50"
+          >
+            {loading ? "Please wait..." : step === "login" ? "Sign In" : "Create Account"}
+          </button>
+        </form>
+
+        <div className="mt-6 text-center text-xs text-zinc-400">
+          {step === "login" ? (
+            <p>
+              Don't have an account?{" "}
               <button
-                type="button"
-                onClick={handleResend}
-                disabled={countdown > 0 || loading}
-                className="text-xs text-zinc-400 hover:text-white transition-colors disabled:opacity-50"
+                onClick={() => setStep("signup")}
+                className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
               >
-                {countdown > 0 ? `Resend code in ${countdown}s` : "Didn't receive a code? Resend"}
+                Sign up
               </button>
-            </div>
-          </form>
-        )}
+            </p>
+          ) : (
+            <p>
+              Already have an account?{" "}
+              <button
+                onClick={() => setStep("login")}
+                className="text-cyan-400 hover:text-cyan-300 font-medium transition-colors"
+              >
+                Sign in
+              </button>
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
