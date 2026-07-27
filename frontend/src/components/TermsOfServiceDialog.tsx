@@ -89,28 +89,7 @@ const TermsOfServiceDialog: React.FC<{
           </AlertDialogAction>
         </AlertDialogFooter>
 
-        {/* Logos */}
-        <div>
-          <div
-            className="mx-auto grid max-w-lg items-center gap-x-2 
-          gap-y-10 sm:max-w-xl grid-cols-6 lg:mx-0 lg:max-w-none mt-10"
-          >
-            {LOGOS.map((companyName) => (
-              <img
-                key={companyName}
-                className="col-span-1 max-h-12 w-full object-contain grayscale opacity-50 hover:opacity-100"
-                src={`/logos/${companyName}.png`}
-                alt={companyName}
-                width={120}
-                height={48}
-              />
-            ))}
-          </div>
-          <div className="text-gray-500 text-xs mt-4 text-center">
-            Designers and engineers from these organizations use Screenshot to
-            Code to build interfaces faster.
-          </div>
-        </div>
+        {/* Logos Removed */}
       </AlertDialogContent>
     </AlertDialog>
   );
