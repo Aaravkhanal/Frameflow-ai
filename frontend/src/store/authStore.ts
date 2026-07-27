@@ -23,6 +23,8 @@ interface AuthState {
   logout: () => Promise<void>;
   checkAuth: () => Promise<void>;
   forgotPassword: (email: string) => Promise<{ ok: boolean; message?: string; error?: string }>;
+  sendOtp: (email: string) => Promise<{ ok: boolean; message?: string; error?: string }>;
+  verifyOtp: (email: string, token: string) => Promise<{ ok: boolean; error?: string }>;
 }
 
 const TOKEN_KEY = "frameflow_auth_token";
@@ -141,5 +143,48 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
     localStorage.removeItem(TOKEN_KEY);
     set({ user: null, token: null, isAuthenticated: false });
+  },
+
+  sendOtp: async (email: string) => {
+    try {
+      const res = await fetch(`${HTTP_BACKEND_URL}/api/auth/send-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { ok: false, error: data.detail || "Failed to send OTP." };
+      }
+      return { ok: true, message: data.message };
+    } catch (err) {
+      return { ok: false, error: "Network error occurred." };
+    }
+  },
+
+  verifyOtp: async (email: string, token: string) => {
+    try {
+      const res = await fetch(`${HTTP_BACKEND_URL}/api/auth/verify-otp`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, token }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        return { ok: false, error: data.detail || "Invalid or expired OTP." };
+      }
+
+      localStorage.setItem(TOKEN_KEY, data.access_token);
+      set({
+        user: data.user,
+        token: data.access_token,
+        isAuthenticated: true,
+        isAuthModalOpen: false,
+      });
+
+      return { ok: true };
+    } catch (err) {
+      return { ok: false, error: "Network error occurred." };
+    }
   },
 }));

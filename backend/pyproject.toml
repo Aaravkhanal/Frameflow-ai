@@ -29,6 +29,7 @@ pillow-heif = "^0.18.0"
 pydantic-settings = "^2.14.2"
 tenacity = "^9.1.4"
 slowapi = "^0.1.10"
+supabase = "^2.31.0"
 
 [tool.poetry.group.dev.dependencies]
 pytest = "^7.4.3"

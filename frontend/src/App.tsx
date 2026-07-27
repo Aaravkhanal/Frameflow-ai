@@ -331,6 +331,19 @@ function App() {
     params: GenerationRequest,
     generationParentHash: string | null = head
   ) {
+    const { isAuthenticated, setAuthModalOpen } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      const guestGenerations = parseInt(localStorage.getItem("frameflow_guest_generations") || "0", 10);
+      if (guestGenerations >= 1) {
+        toast.error("You've reached your free guest limit. Please create an account to continue!");
+        setAuthModalOpen(true, "signup");
+        return;
+      }
+      // Increment guest generations
+      localStorage.setItem("frameflow_guest_generations", (guestGenerations + 1).toString());
+      toast("Using guest mode. Create an account to save your work permanently.", { icon: "👋" });
+    }
+
     // Reset the execution console and orchestration events
     resetExecutionConsoles();
     resetOrchestrationEvents();

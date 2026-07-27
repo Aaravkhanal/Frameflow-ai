@@ -66,7 +66,7 @@ function PreviewPane({ settings, onOpenVersions }: Props) {
   const canGoPrev = currentVersionIndex > 0;
   const canGoNext = currentVersionIndex < totalVersions - 1;
 
-  const currentCommit = head && commits[head] ? commits[head] : "";
+  const currentCommit = head && commits[head] ? commits[head] : null;
   const currentCode = currentCommit
     ? currentCommit.variants[currentCommit.selectedVariantIndex].code
     : "";
@@ -95,7 +95,7 @@ function PreviewPane({ settings, onOpenVersions }: Props) {
     if (!head || !currentCode) return;
     setIsDecoding(true);
     try {
-      const result = await decodeDesign(currentCode, undefined, settings.openAiApiKey);
+      const result = await decodeDesign(currentCode, undefined, settings.openAiApiKey ?? undefined);
       setDecodeAnalysis(head, currentVariantIndex, result);
       toast.success("Design successfully decoded!");
     } catch (e: any) {

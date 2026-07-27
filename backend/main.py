@@ -106,9 +106,9 @@ app.add_middleware(
 
 # ---------------------------------------------------------------------------
 # Routes — always available
-from auth.routes import router as auth_router
+from routes import auth
 
-app.include_router(auth_router)
+app.include_router(auth.router, prefix="/api/auth", tags=["auth"])
 app.include_router(generate_code.router)
 app.include_router(screenshot.router)
 app.include_router(home.router)

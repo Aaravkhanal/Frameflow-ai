@@ -4,7 +4,7 @@ import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { ScrollArea } from "../ui/scroll-area";
 import { useState } from "react";
-import { LuCopy, LuSearch, LuMousePointer2 } from "react-icons/lu";
+import { LuSearch, LuMousePointer2 } from "react-icons/lu";
 import toast from "react-hot-toast";
 
 interface DesignDecodeDashboardProps {
